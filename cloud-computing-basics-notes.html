@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cloud Computing Basics — Section 2 Notes</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-soft: #161a22;
+    --card: #1c2230;
+    --border: #2a3142;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #ff9900;
+    --accent-2: #4f9eff;
+    --accent-3: #2ecc71;
+    --accent-4: #e74c3c;
+    --accent-5: #b48cff;
+    --code-bg: #0b0e14;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  /* HEADER */
+  header.hero {
+    background: linear-gradient(135deg, #1a2980 0%, #26d0ce 100%);
+    padding: 60px 24px 80px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  header.hero h1 {
+    margin: 0 0 10px;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  header.hero p {
+    margin: 0;
+    font-size: 1.1rem;
+    opacity: 0.95;
+  }
+  header.hero .badge {
+    display: inline-block;
+    background: rgba(0,0,0,0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-top: 14px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+  }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1100px;
+    margin: -40px auto 60px;
+    padding: 0 24px;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .toc h2 {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 22px;
+    columns: 2;
+    column-gap: 30px;
+  }
+  .toc li {
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--accent-2); }
+
+  /* SECTIONS */
+  section.topic {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 32px;
+    overflow: hidden;
+    scroll-margin-top: 20px;
+  }
+  section.topic > .topic-header {
+    padding: 22px 28px;
+    background: linear-gradient(90deg, var(--bg-soft) 0%, var(--card) 100%);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topic-num {
+    background: var(--accent-2);
+    color: #000;
+    font-weight: 800;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .topic-header h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .topic-header .subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .topic-body { padding: 24px 28px 28px; }
+  .topic-body h3 {
+    color: var(--accent);
+    margin: 22px 0 10px;
+    font-size: 1.2rem;
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+  }
+  .topic-body h4 {
+    color: var(--accent-2);
+    margin: 18px 0 8px;
+    font-size: 1.05rem;
+  }
+  .topic-body p { margin: 8px 0 12px; }
+  .topic-body ul, .topic-body ol { padding-left: 22px; margin: 8px 0 14px; }
+  .topic-body li { margin-bottom: 6px; }
+  .topic-body strong { color: #fff; }
+
+  /* CALLOUTS */
+  .callout {
+    border-left: 4px solid;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    background: var(--bg-soft);
+  }
+  .callout.info    { border-color: var(--accent-2); }
+  .callout.success { border-color: var(--accent-3); }
+  .callout.warn    { border-color: var(--accent); }
+  .callout.danger  { border-color: var(--accent-4); }
+  .callout.tip     { border-color: var(--accent-5); }
+  .callout .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .callout.info    .label { color: var(--accent-2); }
+  .callout.success .label { color: var(--accent-3); }
+  .callout.warn    .label { color: var(--accent); }
+  .callout.danger  .label { color: var(--accent-4); }
+  .callout.tip     .label { color: var(--accent-5); }
+
+  /* CODE */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; color: #c4f0a8; }
+  p code, li code, td code {
+    background: var(--bg-soft);
+    padding: 2px 7px;
+    border-radius: 5px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.93rem;
+  }
+  th, td { text-align: left; padding: 10px 14px; border: 1px solid var(--border); }
+  th {
+    background: var(--bg-soft);
+    color: var(--accent-2);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    letter-spacing: 0.5px;
+  }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+  /* GRID */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 14px 0;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 14px 0;
+  }
+  .feature-card {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .feature-card h5 {
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-size: 1rem;
+  }
+  .feature-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* ANALOGY BOX */
+  .analogy {
+    background: linear-gradient(135deg, rgba(180,140,255,0.08), rgba(79,158,255,0.05));
+    border: 1px solid var(--accent-5);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 18px 0;
+  }
+  .analogy h4 {
+    margin: 0 0 10px;
+    color: var(--accent-5);
+    font-size: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .analogy p { margin: 0; }
+
+  /* BACK TO TOP */
+  .back-top {
+    display: inline-block;
+    color: var(--accent-2);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-top: 16px;
+  }
+  .back-top:hover { color: var(--accent); }
+
+  /* PILLS */
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .pill.basics    { background: rgba(79,158,255,0.15);  color: var(--accent-2); }
+  .pill.concept   { background: rgba(46,204,113,0.15);  color: var(--accent-3); }
+  .pill.aws       { background: rgba(255,153,0,0.15);   color: var(--accent); }
+  .pill.fresher   { background: rgba(180,140,255,0.15); color: var(--accent-5); }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px 16px;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 720px) {
+    header.hero h1 { font-size: 1.9rem; }
+    .toc ol { columns: 1; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .topic-body { padding: 18px; }
+    .topic-header { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>Cloud Computing Basics</h1>
+  <p>Section 2 — For Freshers (Foundations of the Cloud)</p>
+  <span class="badge">8 Topics · Servers · Cloud Types · Service Models · AWS Infra · Hypervisor · Terminologies</span>
+</header>
+
+<div class="container">
+
+  <!-- TOC -->
+  <nav class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#overview">Basic Overview</a></li>
+      <li><a href="#servers">Understanding Servers &amp; Cloud Benefits</a></li>
+      <li><a href="#types">Different Types of Cloud</a></li>
+      <li><a href="#models">Cloud Computing Model</a></li>
+      <li><a href="#aws-infra">AWS Infrastructure</a></li>
+      <li><a href="#hypervisor">Understanding Hypervisor</a></li>
+      <li><a href="#terms">Key Terminologies</a></li>
+      <li><a href="#global-regional">Global vs Regional Service</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- 1. Basic Overview -->
+  <!-- ============================================================ -->
+  <section class="topic" id="overview">
+    <div class="topic-header">
+      <div class="topic-num">1</div>
+      <div>
+        <h2>Basic Overview</h2>
+        <p class="subtitle">What cloud computing is, in plain English</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill basics">Foundation</span>
+        <span class="pill fresher">Beginner-Friendly</span>
+      </p>
+
+      <h3>What is Cloud Computing?</h3>
+      <p>
+        <strong>Cloud Computing</strong> is the on-demand delivery of IT resources — servers, storage, databases, networking,
+        software, AI — over the <strong>internet</strong>, with <strong>pay-as-you-go</strong> pricing.
+      </p>
+      <p>
+        Instead of buying physical computers and running them in your office, you <strong>rent</strong> computing resources
+        from a cloud provider (AWS, Azure, GCP) and only pay for what you use.
+      </p>
+
+      <div class="analogy">
+        <h4>Simple Analogy</h4>
+        <p>
+          Cloud is like <strong>electricity</strong>. You don't build your own power plant at home — you plug into the wall and
+          pay only for the units you consume. Cloud computing works the same way for IT resources.
+        </p>
+      </div>
+
+      <h3>Why Cloud?</h3>
+      <ul>
+        <li><strong>No hardware to buy</strong> — start in minutes, not months</li>
+        <li><strong>Elastic</strong> — scale up during traffic spikes, scale down at night</li>
+        <li><strong>Pay only for usage</strong> — per second / per request</li>
+        <li><strong>Global reach</strong> — deploy in any country in clicks</li>
+        <li><strong>Reliability</strong> — managed, replicated, backed up by the provider</li>
+      </ul>
+
+      <h3>Top Cloud Providers</h3>
+      <div class="grid-3">
+        <div class="feature-card"><h5>AWS</h5><p>Amazon Web Services — market leader, ~200+ services.</p></div>
+        <div class="feature-card"><h5>Microsoft Azure</h5><p>Strong in enterprise &amp; hybrid cloud.</p></div>
+        <div class="feature-card"><h5>Google Cloud (GCP)</h5><p>Strong in data, ML, and Kubernetes.</p></div>
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 2. Servers & Cloud Benefits -->
+  <!-- ============================================================ -->
+  <section class="topic" id="servers">
+    <div class="topic-header">
+      <div class="topic-num">2</div>
+      <div>
+        <h2>Understanding Servers &amp; Cloud Benefits</h2>
+        <p class="subtitle">From physical machines in a data center to the cloud</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill basics">Foundation</span>
+        <span class="pill concept">Concept</span>
+      </p>
+
+      <h3>What is a Server?</h3>
+      <p>
+        A <strong>server</strong> is just a powerful computer that <em>serves</em> requests from other computers (clients).
+        When you open a website, your browser (client) talks to a web server somewhere on the internet.
+      </p>
+
+      <h4>Types of Servers</h4>
+      <ul>
+        <li><strong>Web Server</strong> — serves websites (Nginx, Apache)</li>
+        <li><strong>Application Server</strong> — runs business logic (Tomcat, Node.js)</li>
+        <li><strong>Database Server</strong> — stores data (MySQL, PostgreSQL)</li>
+        <li><strong>File Server</strong> — stores and shares files</li>
+        <li><strong>Mail Server</strong> — sends &amp; receives email</li>
+      </ul>
+
+      <h3>The Old Way — On-Premise (On-Prem)</h3>
+      <p>Before the cloud, companies bought their own servers and kept them in a server room or rented a data center.</p>
+
+      <h4>Problems with On-Prem</h4>
+      <ul>
+        <li><strong>High upfront cost</strong> (CapEx) — hardware, racks, cooling, electricity</li>
+        <li><strong>Slow procurement</strong> — weeks/months to add a new server</li>
+        <li><strong>Capacity guessing</strong> — over-provision (wasted $$) or under-provision (downtime)</li>
+        <li><strong>You manage everything</strong> — security, patching, backups, replacement</li>
+        <li><strong>Hard to scale globally</strong></li>
+      </ul>
+
+      <h3>Benefits of the Cloud</h3>
+      <table>
+        <thead>
+          <tr><th>Benefit</th><th>What It Means</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>No CapEx</strong></td><td>Trade huge upfront purchases for variable, pay-as-you-go expenses (OpEx).</td></tr>
+          <tr><td><strong>Elasticity</strong></td><td>Scale up &amp; down automatically based on demand.</td></tr>
+          <tr><td><strong>Speed &amp; Agility</strong></td><td>Provision a server in seconds, not weeks.</td></tr>
+          <tr><td><strong>Global Reach</strong></td><td>Deploy in any region of the world in minutes.</td></tr>
+          <tr><td><strong>Reliability / HA</strong></td><td>Multi-AZ &amp; multi-region replication is built-in.</td></tr>
+          <tr><td><strong>Security</strong></td><td>Provider handles physical security, you focus on app/data.</td></tr>
+          <tr><td><strong>Focus on Business</strong></td><td>Stop maintaining hardware, build features instead.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="label">Remember</span>
+        <strong>CapEx → OpEx</strong> is one of the biggest financial wins of moving to cloud.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 3. Different Types of Cloud -->
+  <!-- ============================================================ -->
+  <section class="topic" id="types">
+    <div class="topic-header">
+      <div class="topic-num">3</div>
+      <div>
+        <h2>Different Types of Cloud (Deployment Models)</h2>
+        <p class="subtitle">Public · Private · Hybrid · Multi-Cloud</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill concept">Deployment Models</span>
+      </p>
+
+      <h3>The 4 Cloud Deployment Models</h3>
+
+      <div class="grid-2">
+        <div class="feature-card">
+          <h5>1. Public Cloud</h5>
+          <p>Resources owned by a third-party provider (AWS, Azure, GCP) and shared with many tenants. Pay-as-you-go. Most common.</p>
+        </div>
+        <div class="feature-card">
+          <h5>2. Private Cloud</h5>
+          <p>Cloud built for and used by a single organization. Hosted on-prem or by a dedicated provider. Maximum control &amp; compliance.</p>
+        </div>
+        <div class="feature-card">
+          <h5>3. Hybrid Cloud</h5>
+          <p>Mix of public + private (or on-prem). E.g. sensitive data stays on-prem, web app runs on AWS.</p>
+        </div>
+        <div class="feature-card">
+          <h5>4. Multi-Cloud</h5>
+          <p>Using multiple public providers (AWS + Azure + GCP) to avoid vendor lock-in or use best-of-breed services.</p>
+        </div>
+      </div>
+
+      <h3>Comparison Table</h3>
+      <table>
+        <thead>
+          <tr><th>Model</th><th>Cost</th><th>Control</th><th>Scalability</th><th>Best For</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Public</td><td>Lowest</td><td>Low</td><td>Highest</td><td>Startups, web apps, most workloads</td></tr>
+          <tr><td>Private</td><td>Highest</td><td>Highest</td><td>Limited</td><td>Banks, defence, strict compliance</td></tr>
+          <tr><td>Hybrid</td><td>Medium</td><td>Medium</td><td>High</td><td>Enterprises during cloud migration</td></tr>
+          <tr><td>Multi-Cloud</td><td>Variable</td><td>Medium</td><td>High</td><td>Large companies avoiding lock-in</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="label">Real World</span>
+        Most large enterprises today run a <strong>hybrid + multi-cloud</strong> setup — keeping some legacy apps on-prem
+        while using AWS for new workloads and Azure for Microsoft 365 integration.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 4. Cloud Computing Model (IaaS / PaaS / SaaS) -->
+  <!-- ============================================================ -->
+  <section class="topic" id="models">
+    <div class="topic-header">
+      <div class="topic-num">4</div>
+      <div>
+        <h2>Cloud Computing Model (Service Models)</h2>
+        <p class="subtitle">IaaS · PaaS · SaaS — who manages what?</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill concept">Service Models</span>
+      </p>
+
+      <h3>The 3 Cloud Service Models</h3>
+
+      <div class="grid-3">
+        <div class="feature-card">
+          <h5>IaaS</h5>
+          <p><strong>Infrastructure as a Service</strong> — you rent raw compute, storage, network. You manage OS &amp; everything above.</p>
+        </div>
+        <div class="feature-card">
+          <h5>PaaS</h5>
+          <p><strong>Platform as a Service</strong> — you bring your code, the platform runs it. No server management.</p>
+        </div>
+        <div class="feature-card">
+          <h5>SaaS</h5>
+          <p><strong>Software as a Service</strong> — fully ready software you just log in and use.</p>
+        </div>
+      </div>
+
+      <h3>Who Manages What?</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Layer</th>
+            <th>On-Prem</th>
+            <th>IaaS</th>
+            <th>PaaS</th>
+            <th>SaaS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Application</td><td>You</td><td>You</td><td>You</td><td>Provider</td></tr>
+          <tr><td>Data</td><td>You</td><td>You</td><td>You</td><td>Provider</td></tr>
+          <tr><td>Runtime</td><td>You</td><td>You</td><td>Provider</td><td>Provider</td></tr>
+          <tr><td>Middleware</td><td>You</td><td>You</td><td>Provider</td><td>Provider</td></tr>
+          <tr><td>Operating System</td><td>You</td><td>You</td><td>Provider</td><td>Provider</td></tr>
+          <tr><td>Virtualization</td><td>You</td><td>Provider</td><td>Provider</td><td>Provider</td></tr>
+          <tr><td>Servers / Storage / Network</td><td>You</td><td>Provider</td><td>Provider</td><td>Provider</td></tr>
+        </tbody>
+      </table>
+
+      <h3>AWS Examples for Each Model</h3>
+      <ul>
+        <li><strong>IaaS:</strong> EC2, EBS, VPC</li>
+        <li><strong>PaaS:</strong> Elastic Beanstalk, AWS App Runner, RDS, Lambda</li>
+        <li><strong>SaaS:</strong> Amazon WorkMail, Amazon Chime, Amazon Connect</li>
+      </ul>
+
+      <div class="analogy">
+        <h4>Pizza Analogy</h4>
+        <p>
+          <strong>On-Prem</strong> = make pizza at home (buy oven, dough, cheese, everything).<br />
+          <strong>IaaS</strong> = take-home pizza kit (provider gives ingredients, you cook).<br />
+          <strong>PaaS</strong> = pizza delivery (you provide the dining table, provider cooks).<br />
+          <strong>SaaS</strong> = dining at a restaurant (you just eat).
+        </p>
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5. AWS Infrastructure -->
+  <!-- ============================================================ -->
+  <section class="topic" id="aws-infra">
+    <div class="topic-header">
+      <div class="topic-num">5</div>
+      <div>
+        <h2>AWS Infrastructure</h2>
+        <p class="subtitle">Regions, Availability Zones, Edge Locations &amp; more</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill aws">AWS</span>
+        <span class="pill concept">Architecture</span>
+      </p>
+
+      <h3>The AWS Global Infrastructure Hierarchy</h3>
+      <pre><code>AWS Global Network
+│
+├── Region (e.g. us-east-1, ap-south-1)
+│    ├── Availability Zone (AZ) — at least 3 per region
+│    │     └── Data Center(s) — physical buildings
+│    └── Local Zones (optional, for low-latency in cities)
+│
+├── Edge Locations (400+) — for CloudFront / Route 53
+└── Wavelength Zones — at telecom 5G edge</code></pre>
+
+      <h3>Regions</h3>
+      <ul>
+        <li>A <strong>Region</strong> is a physical geographic area (e.g. <code>ap-south-1</code> = Mumbai).</li>
+        <li>AWS has <strong>30+ regions</strong> worldwide.</li>
+        <li>Each region is <strong>fully independent</strong> — data does not leave the region unless you copy it.</li>
+        <li>Choose a region based on: <strong>latency</strong>, <strong>compliance</strong>, <strong>service availability</strong>, <strong>cost</strong>.</li>
+      </ul>
+
+      <h3>Availability Zones (AZs)</h3>
+      <ul>
+        <li>Each region has <strong>3 or more AZs</strong> (e.g. <code>us-east-1a</code>, <code>1b</code>, <code>1c</code>).</li>
+        <li>An AZ is <strong>one or more physical data centers</strong> with independent power, cooling, networking.</li>
+        <li>AZs are <strong>kilometers apart</strong> but connected by ultra-low-latency fiber.</li>
+        <li>Designed to be <strong>isolated from failures</strong> in other AZs.</li>
+      </ul>
+
+      <div class="callout success">
+        <span class="label">Best Practice</span>
+        Always deploy critical workloads across <strong>at least 2 AZs</strong> for high availability. If one AZ fails, your app keeps running in the other.
+      </div>
+
+      <h3>Edge Locations</h3>
+      <ul>
+        <li>Hundreds of small data centers spread across the world (in cities, ISPs).</li>
+        <li>Used by <strong>CloudFront</strong> (CDN), <strong>Route 53</strong> (DNS), <strong>Global Accelerator</strong>.</li>
+        <li>Bring content physically <em>closer</em> to end-users for low latency.</li>
+      </ul>
+
+      <h3>Other Specialty Locations</h3>
+      <ul>
+        <li><strong>Local Zones</strong> — extension of a region close to large population centers (e.g. Los Angeles)</li>
+        <li><strong>Wavelength Zones</strong> — embedded in 5G telecom networks</li>
+        <li><strong>AWS Outposts</strong> — AWS hardware running in your own data center</li>
+        <li><strong>GovCloud</strong> — special regions for U.S. government workloads</li>
+      </ul>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 6. Hypervisor -->
+  <!-- ============================================================ -->
+  <section class="topic" id="hypervisor">
+    <div class="topic-header">
+      <div class="topic-num">6</div>
+      <div>
+        <h2>Understanding Hypervisor</h2>
+        <p class="subtitle">The technology that makes the cloud possible</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill concept">Virtualization</span>
+      </p>
+
+      <h3>What is a Hypervisor?</h3>
+      <p>
+        A <strong>hypervisor</strong> (also called Virtual Machine Monitor / VMM) is a software layer that lets one
+        physical computer run <strong>multiple virtual machines (VMs)</strong> at the same time, each thinking it has its own
+        CPU, RAM, and disk.
+      </p>
+
+      <div class="analogy">
+        <h4>Simple Analogy</h4>
+        <p>
+          Think of a physical server as an <strong>apartment building</strong>, and the hypervisor as the <strong>building manager</strong>.
+          The manager divides the building into separate <strong>flats (VMs)</strong>, each with its own door, kitchen, water meter — but
+          they all share the same physical structure underneath.
+        </p>
+      </div>
+
+      <h3>Two Types of Hypervisors</h3>
+
+      <div class="grid-2">
+        <div class="feature-card">
+          <h5>Type 1 — Bare Metal</h5>
+          <p>
+            Runs <strong>directly on the hardware</strong>. No host OS. Faster, more secure. Used in data centers / cloud.<br />
+            <em>Examples:</em> Xen, KVM, VMware ESXi, Microsoft Hyper-V, AWS Nitro.
+          </p>
+        </div>
+        <div class="feature-card">
+          <h5>Type 2 — Hosted</h5>
+          <p>
+            Runs <strong>on top of a host OS</strong> (Windows/macOS/Linux). Easier to install. Slower. Used on developer laptops.<br />
+            <em>Examples:</em> VirtualBox, VMware Workstation, Parallels.
+          </p>
+        </div>
+      </div>
+
+      <h3>Hypervisor vs Container</h3>
+      <table>
+        <thead>
+          <tr><th></th><th>Virtual Machine (Hypervisor)</th><th>Container (Docker)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>What's virtualized</td><td>Whole hardware</td><td>OS / processes</td></tr>
+          <tr><td>Includes own OS?</td><td>Yes</td><td>No (shares host kernel)</td></tr>
+          <tr><td>Boot time</td><td>Minutes</td><td>Seconds</td></tr>
+          <tr><td>Size</td><td>GBs</td><td>MBs</td></tr>
+          <tr><td>Isolation</td><td>Strong</td><td>Process-level</td></tr>
+        </tbody>
+      </table>
+
+      <h3>How AWS Uses Hypervisors</h3>
+      <ul>
+        <li>Older EC2 instances ran on a customized <strong>Xen</strong> hypervisor.</li>
+        <li>Modern EC2 instances run on the <strong>AWS Nitro System</strong> — a lightweight, hardware-accelerated hypervisor that delivers near bare-metal performance.</li>
+        <li>This is why one physical server in an AWS data center can host many EC2 instances belonging to different customers — securely.</li>
+      </ul>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 7. Key Terminologies -->
+  <!-- ============================================================ -->
+  <section class="topic" id="terms">
+    <div class="topic-header">
+      <div class="topic-num">7</div>
+      <div>
+        <h2>Key Terminologies</h2>
+        <p class="subtitle">Cloud vocabulary you'll hear every day</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill basics">Glossary</span>
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>Term</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>On-Demand</strong></td><td>Resources are available instantly when you ask — no waiting.</td></tr>
+          <tr><td><strong>Pay-as-you-go</strong></td><td>You pay only for what you use, by the second / hour / GB.</td></tr>
+          <tr><td><strong>Elasticity</strong></td><td>Auto scale up &amp; down based on demand.</td></tr>
+          <tr><td><strong>Scalability</strong></td><td>Ability to grow capacity. Vertical = bigger machine. Horizontal = more machines.</td></tr>
+          <tr><td><strong>High Availability (HA)</strong></td><td>System keeps running even if a component fails. Often via multi-AZ.</td></tr>
+          <tr><td><strong>Fault Tolerance</strong></td><td>System continues without interruption when something breaks.</td></tr>
+          <tr><td><strong>Disaster Recovery (DR)</strong></td><td>Plan to recover after a major failure — often involves another region.</td></tr>
+          <tr><td><strong>Latency</strong></td><td>Time between a request and a response. Lower is better.</td></tr>
+          <tr><td><strong>Throughput</strong></td><td>How much data/work a system can handle per second.</td></tr>
+          <tr><td><strong>SLA</strong></td><td>Service Level Agreement — provider's uptime guarantee (e.g. 99.99%).</td></tr>
+          <tr><td><strong>SLO / SLI</strong></td><td>Internal targets &amp; measurements behind an SLA.</td></tr>
+          <tr><td><strong>RTO</strong></td><td>Recovery Time Objective — how fast you must be back up.</td></tr>
+          <tr><td><strong>RPO</strong></td><td>Recovery Point Objective — how much data loss is acceptable.</td></tr>
+          <tr><td><strong>VPC</strong></td><td>Virtual Private Cloud — your isolated network in AWS.</td></tr>
+          <tr><td><strong>IAM</strong></td><td>Identity &amp; Access Management — who can do what.</td></tr>
+          <tr><td><strong>CapEx vs OpEx</strong></td><td>Big upfront purchase (CapEx) vs ongoing usage cost (OpEx).</td></tr>
+          <tr><td><strong>CDN</strong></td><td>Content Delivery Network — caches content globally for speed (CloudFront).</td></tr>
+          <tr><td><strong>Serverless</strong></td><td>You don't manage servers; provider runs &amp; scales code (Lambda).</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout tip">
+        <span class="label">Memorize</span>
+        <strong>HA</strong>, <strong>RTO/RPO</strong>, <strong>SLA</strong>, <strong>VPC</strong>, <strong>IAM</strong> — these come up in nearly every cloud interview.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 8. Global vs Regional -->
+  <!-- ============================================================ -->
+  <section class="topic" id="global-regional">
+    <div class="topic-header">
+      <div class="topic-num">8</div>
+      <div>
+        <h2>Global vs Regional Service</h2>
+        <p class="subtitle">Where does an AWS service actually live?</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill aws">AWS</span>
+        <span class="pill concept">Scope</span>
+      </p>
+
+      <p>Every AWS service has a <strong>scope</strong> — it either belongs to a single region or runs globally.</p>
+
+      <h3>Global Services</h3>
+      <p>Created once and visible the same way from anywhere in the world. No region selector at top of console.</p>
+      <ul>
+        <li><strong>IAM</strong> — users, groups, roles, policies</li>
+        <li><strong>Route 53</strong> — DNS</li>
+        <li><strong>CloudFront</strong> — CDN</li>
+        <li><strong>AWS Organizations</strong></li>
+        <li><strong>WAF</strong> (when used with CloudFront)</li>
+        <li><strong>AWS Shield</strong></li>
+        <li><strong>Billing &amp; AWS Support</strong></li>
+      </ul>
+
+      <h3>Regional Services</h3>
+      <p>Tied to a specific region. Resources created in <code>ap-south-1</code> won't appear in <code>us-east-1</code>.</p>
+      <ul>
+        <li><strong>EC2</strong>, <strong>EBS</strong>, <strong>VPC</strong>, <strong>Subnets</strong></li>
+        <li><strong>RDS</strong>, <strong>DynamoDB</strong> (data is regional, can be globally replicated)</li>
+        <li><strong>S3</strong> — bucket is regional but namespace is global</li>
+        <li><strong>Lambda</strong>, <strong>ECS/EKS</strong>, <strong>API Gateway</strong></li>
+        <li><strong>KMS</strong>, <strong>Secrets Manager</strong>, <strong>ACM</strong> (mostly)</li>
+        <li><strong>CloudWatch Logs</strong>, <strong>SNS</strong>, <strong>SQS</strong></li>
+      </ul>
+
+      <h3>Service Scope Cheat Sheet</h3>
+      <table>
+        <thead>
+          <tr><th>Scope</th><th>Examples</th><th>Note</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Global</strong></td><td>IAM, Route 53, CloudFront, Organizations, Shield</td><td>One copy across all regions</td></tr>
+          <tr><td><strong>Regional</strong></td><td>EC2, RDS, Lambda, VPC, KMS</td><td>Resources isolated per region</td></tr>
+          <tr><td><strong>Zonal</strong></td><td>EBS volumes, EC2 instance, NAT Gateway</td><td>Lives in a specific Availability Zone</td></tr>
+          <tr><td><strong>Hybrid scope</strong></td><td>S3 (regional bucket, global namespace), DynamoDB Global Tables</td><td>Special replication features</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <span class="label">Watch Out</span>
+        If you create resources in the wrong region, you may "lose" them in the console (you just need to change region).
+        Also, cross-region traffic and replication usually <strong>cost extra</strong>.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="topic" id="summary">
+    <div class="topic-header">
+      <div class="topic-num" style="background:var(--accent-3);">★</div>
+      <div>
+        <h2>One-Page Summary</h2>
+        <p class="subtitle">Quick revision before exam / interview</p>
+      </div>
+    </div>
+    <div class="topic-body">
+      <ul>
+        <li><strong>Cloud Computing</strong> = on-demand IT over the internet, pay-as-you-go.</li>
+        <li><strong>Servers</strong> are just powerful computers; cloud lets you rent them by the second.</li>
+        <li><strong>4 Cloud Types:</strong> Public, Private, Hybrid, Multi-Cloud.</li>
+        <li><strong>3 Service Models:</strong> IaaS (raw infra), PaaS (platform), SaaS (software).</li>
+        <li><strong>AWS Infra:</strong> Region → AZ → Data Center, plus Edge Locations for CDN/DNS.</li>
+        <li><strong>Hypervisor</strong> = software that runs many VMs on one machine; AWS uses <strong>Nitro</strong>.</li>
+        <li><strong>HA &amp; Fault Tolerance</strong> need multi-AZ; <strong>DR</strong> often needs multi-region.</li>
+        <li><strong>Global services:</strong> IAM, Route 53, CloudFront, Shield. Most others are <strong>regional</strong>.</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Cloud Computing Basics · Section 2 — Notes prepared for revision · 2026
+</footer>
+
+</body>
+</html>

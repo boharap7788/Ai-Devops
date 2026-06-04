@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AWS Security — Section 17 Notes</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --bg-soft: #161a22;
+    --card: #1c2230;
+    --border: #2a3142;
+    --text: #e6e9ef;
+    --muted: #9aa3b2;
+    --accent: #ff9900;
+    --accent-2: #4f9eff;
+    --accent-3: #2ecc71;
+    --accent-4: #e74c3c;
+    --accent-5: #b48cff;
+    --code-bg: #0b0e14;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+  }
+
+  /* HEADER */
+  header.hero {
+    background: linear-gradient(135deg, #232f3e 0%, #ff9900 100%);
+    padding: 60px 24px 80px;
+    text-align: center;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  header.hero h1 {
+    margin: 0 0 10px;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  header.hero p {
+    margin: 0;
+    font-size: 1.1rem;
+    opacity: 0.95;
+  }
+  header.hero .badge {
+    display: inline-block;
+    background: rgba(0,0,0,0.3);
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-top: 14px;
+    font-size: 0.9rem;
+    backdrop-filter: blur(10px);
+  }
+
+  /* LAYOUT */
+  .container {
+    max-width: 1100px;
+    margin: -40px auto 60px;
+    padding: 0 24px;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  }
+  .toc h2 {
+    margin: 0 0 16px;
+    font-size: 1.1rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .toc ol {
+    margin: 0;
+    padding-left: 22px;
+    columns: 2;
+    column-gap: 30px;
+  }
+  .toc li {
+    margin-bottom: 8px;
+    break-inside: avoid;
+  }
+  .toc a {
+    color: var(--text);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .toc a:hover {
+    color: var(--accent);
+  }
+
+  /* SECTIONS */
+  section.topic {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 32px;
+    overflow: hidden;
+    scroll-margin-top: 20px;
+  }
+  section.topic > .topic-header {
+    padding: 22px 28px;
+    background: linear-gradient(90deg, var(--bg-soft) 0%, var(--card) 100%);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topic-num {
+    background: var(--accent);
+    color: #000;
+    font-weight: 800;
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .topic-header h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  .topic-header .subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+  .topic-body {
+    padding: 24px 28px 28px;
+  }
+  .topic-body h3 {
+    color: var(--accent-2);
+    margin: 22px 0 10px;
+    font-size: 1.2rem;
+    border-left: 3px solid var(--accent-2);
+    padding-left: 12px;
+  }
+  .topic-body h4 {
+    color: var(--accent);
+    margin: 18px 0 8px;
+    font-size: 1.05rem;
+  }
+  .topic-body p {
+    margin: 8px 0 12px;
+  }
+  .topic-body ul, .topic-body ol {
+    padding-left: 22px;
+    margin: 8px 0 14px;
+  }
+  .topic-body li {
+    margin-bottom: 6px;
+  }
+  .topic-body strong {
+    color: #fff;
+  }
+
+  /* CALLOUTS */
+  .callout {
+    border-left: 4px solid;
+    padding: 14px 18px;
+    border-radius: 8px;
+    margin: 16px 0;
+    background: var(--bg-soft);
+  }
+  .callout.info    { border-color: var(--accent-2); }
+  .callout.success { border-color: var(--accent-3); }
+  .callout.warn    { border-color: var(--accent); }
+  .callout.danger  { border-color: var(--accent-4); }
+  .callout.tip     { border-color: var(--accent-5); }
+  .callout .label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .callout.info    .label { color: var(--accent-2); }
+  .callout.success .label { color: var(--accent-3); }
+  .callout.warn    .label { color: var(--accent); }
+  .callout.danger  .label { color: var(--accent-4); }
+  .callout.tip     .label { color: var(--accent-5); }
+
+  /* CODE */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    line-height: 1.5;
+  }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    color: #c4f0a8;
+  }
+  p code, li code {
+    background: var(--bg-soft);
+    padding: 2px 7px;
+    border-radius: 5px;
+    color: var(--accent);
+    font-size: 0.92em;
+  }
+
+  /* TABLES */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.93rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+  }
+  th {
+    background: var(--bg-soft);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.82rem;
+    letter-spacing: 0.5px;
+  }
+  tr:nth-child(even) td {
+    background: rgba(255,255,255,0.02);
+  }
+
+  /* GRID */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 14px 0;
+  }
+  .feature-card {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .feature-card h5 {
+    margin: 0 0 8px;
+    color: var(--accent);
+    font-size: 1rem;
+  }
+  .feature-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* BACK TO TOP */
+  .back-top {
+    display: inline-block;
+    color: var(--accent-2);
+    text-decoration: none;
+    font-size: 0.85rem;
+    margin-top: 16px;
+  }
+  .back-top:hover { color: var(--accent); }
+
+  /* PILL BADGES */
+  .pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .pill.regional   { background: rgba(79,158,255,0.15);  color: var(--accent-2); }
+  .pill.global     { background: rgba(46,204,113,0.15);  color: var(--accent-3); }
+  .pill.managed    { background: rgba(255,153,0,0.15);   color: var(--accent); }
+  .pill.detective  { background: rgba(180,140,255,0.15); color: var(--accent-5); }
+  .pill.preventive { background: rgba(231,76,60,0.15);   color: var(--accent-4); }
+
+  footer {
+    text-align: center;
+    color: var(--muted);
+    padding: 30px 16px;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 720px) {
+    header.hero h1 { font-size: 1.9rem; }
+    .toc ol { columns: 1; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .topic-body { padding: 18px; }
+    .topic-header { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>AWS Security</h1>
+  <p>Section 17 — Quick Reference Notes</p>
+  <span class="badge">7 Services · KMS · Secrets Manager · ACM · WAF · Shield · GuardDuty · Macie · Inspector</span>
+</header>
+
+<div class="container">
+
+  <!-- TABLE OF CONTENTS -->
+  <nav class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#kms">Understanding KMS Encryption</a></li>
+      <li><a href="#secrets">AWS Secrets Manager</a></li>
+      <li><a href="#acm">AWS Certificate Manager (ACM)</a></li>
+      <li><a href="#waf-shield">WAF &amp; Shield</a></li>
+      <li><a href="#guardduty">Amazon GuardDuty</a></li>
+      <li><a href="#macie">Amazon Macie</a></li>
+      <li><a href="#inspector">Amazon Inspector</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============================================================ -->
+  <!-- 1. KMS                                                         -->
+  <!-- ============================================================ -->
+  <section class="topic" id="kms">
+    <div class="topic-header">
+      <div class="topic-num">1</div>
+      <div>
+        <h2>Understanding KMS Encryption</h2>
+        <p class="subtitle">AWS Key Management Service — central, managed cryptography for AWS</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional</span>
+        <span class="pill managed">Fully Managed</span>
+        <span class="pill preventive">Preventive Control</span>
+      </p>
+
+      <h3>What is KMS?</h3>
+      <p>
+        AWS <strong>Key Management Service (KMS)</strong> is a managed service that lets you create, control, rotate, and audit
+        the cryptographic keys used to encrypt your data across AWS services (S3, EBS, RDS, Secrets Manager, Lambda env vars, etc.)
+        and your own applications.
+      </p>
+
+      <div class="callout info">
+        <span class="label">Key Idea</span>
+        KMS never gives you the raw key material. You ask KMS to encrypt/decrypt, and it does the cryptographic work behind the scenes
+        using <strong>FIPS 140-2 validated</strong> hardware security modules (HSMs).
+      </div>
+
+      <h3>Types of Keys</h3>
+      <table>
+        <thead>
+          <tr><th>Key Type</th><th>Description</th><th>Rotation</th><th>Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>AWS Owned</strong></td><td>Owned and managed by AWS, used across many accounts. Invisible to you.</td><td>AWS-managed</td><td>Free</td></tr>
+          <tr><td><strong>AWS Managed</strong></td><td>Created automatically by AWS services in your account (e.g. <code>aws/s3</code>, <code>aws/ebs</code>).</td><td>Auto every 1 yr</td><td>Free</td></tr>
+          <tr><td><strong>Customer Managed Key (CMK)</strong></td><td>You create, configure policies, and control. Most flexible.</td><td>Optional auto (1 yr)</td><td>$1/month per key</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Symmetric vs Asymmetric</h3>
+      <div class="grid-2">
+        <div class="feature-card">
+          <h5>Symmetric (AES-256)</h5>
+          <p>Single key for encrypt &amp; decrypt. Fastest. Default and most common. Key never leaves KMS.</p>
+        </div>
+        <div class="feature-card">
+          <h5>Asymmetric (RSA / ECC)</h5>
+          <p>Public/private key pair. Public key can be downloaded. Used for digital signatures and encrypt-outside-AWS scenarios.</p>
+        </div>
+      </div>
+
+      <h3>Envelope Encryption (Important Concept)</h3>
+      <p>For large data, KMS uses <strong>envelope encryption</strong>:</p>
+      <ol>
+        <li>KMS generates a <strong>Data Key (DEK)</strong> using your CMK.</li>
+        <li>The plaintext DEK encrypts your large data locally (fast).</li>
+        <li>The DEK itself is encrypted by the CMK and stored alongside the data.</li>
+        <li>Plaintext DEK is discarded from memory.</li>
+      </ol>
+      <p>This keeps KMS fast and cheap while still protecting the keys.</p>
+
+      <h3>CLI Examples</h3>
+      <pre><code># Encrypt a small string
+aws kms encrypt \
+  --key-id alias/my-key \
+  --plaintext fileb://secret.txt \
+  --output text --query CiphertextBlob | base64 -d > secret.enc
+
+# Decrypt
+aws kms decrypt \
+  --ciphertext-blob fileb://secret.enc \
+  --output text --query Plaintext | base64 -d</code></pre>
+
+      <h3>Key Use Cases</h3>
+      <ul>
+        <li>Encrypting <strong>S3 buckets</strong> (SSE-KMS)</li>
+        <li>Encrypting <strong>EBS volumes</strong> &amp; snapshots</li>
+        <li>Encrypting <strong>RDS</strong>, <strong>DynamoDB</strong>, <strong>Lambda env vars</strong></li>
+        <li>Backing <strong>Secrets Manager</strong> &amp; <strong>SSM Parameter Store</strong> SecureStrings</li>
+        <li>Cross-account / cross-region encrypted backups</li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="label">Remember</span>
+        KMS keys are <strong>regional</strong>. To copy an encrypted snapshot to another region, you must re-encrypt with a key in the destination region.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 2. Secrets Manager                                             -->
+  <!-- ============================================================ -->
+  <section class="topic" id="secrets">
+    <div class="topic-header">
+      <div class="topic-num">2</div>
+      <div>
+        <h2>AWS Secrets Manager</h2>
+        <p class="subtitle">Securely store, rotate, and retrieve secrets like DB passwords &amp; API keys</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional</span>
+        <span class="pill managed">Fully Managed</span>
+        <span class="pill preventive">Preventive</span>
+      </p>
+
+      <h3>What is Secrets Manager?</h3>
+      <p>
+        <strong>AWS Secrets Manager</strong> is a service that lets you store, manage, and automatically rotate secrets
+        (passwords, DB credentials, API keys, OAuth tokens) without hard-coding them in code or config.
+      </p>
+
+      <h3>Core Features</h3>
+      <ul>
+        <li><strong>Encryption at rest</strong> using KMS</li>
+        <li><strong>Automatic rotation</strong> via Lambda (built-in for RDS, Aurora, Redshift, DocumentDB)</li>
+        <li><strong>Fine-grained IAM access</strong> per secret</li>
+        <li><strong>Cross-region replication</strong> for disaster recovery</li>
+        <li><strong>Versioning</strong> with staging labels (<code>AWSCURRENT</code>, <code>AWSPENDING</code>, <code>AWSPREVIOUS</code>)</li>
+      </ul>
+
+      <h3>Secrets Manager vs SSM Parameter Store</h3>
+      <table>
+        <thead>
+          <tr><th>Feature</th><th>Secrets Manager</th><th>SSM Parameter Store</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Cost</td><td>$0.40 / secret / month</td><td>Free (Standard)</td></tr>
+          <tr><td>Auto Rotation</td><td>Yes, built-in</td><td>No (must build it)</td></tr>
+          <tr><td>Cross-region replication</td><td>Yes</td><td>No</td></tr>
+          <tr><td>Max size</td><td>64 KB</td><td>4 KB (Std) / 8 KB (Adv)</td></tr>
+          <tr><td>Best for</td><td>Production credentials, DB passwords</td><td>Config values, feature flags, env settings</td></tr>
+        </tbody>
+      </table>
+
+      <h3>CLI Examples</h3>
+      <pre><code># Store a secret
+aws secretsmanager create-secret \
+  --name prod/db/password \
+  --secret-string '{"username":"admin","password":"S3cure!"}'
+
+# Retrieve a secret
+aws secretsmanager get-secret-value \
+  --secret-id prod/db/password \
+  --query SecretString --output text</code></pre>
+
+      <h3>Common Use Cases</h3>
+      <ul>
+        <li>Database credentials for RDS / Aurora with auto-rotation</li>
+        <li>Third-party API keys (Stripe, Twilio, Slack)</li>
+        <li>OAuth tokens / refresh tokens</li>
+        <li>Multi-account secret sharing using resource policies</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Best Practice</span>
+        Never hard-code secrets in code or environment variables in plaintext. Reference them by ARN, and load at runtime via the SDK
+        (it caches automatically).
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 3. ACM                                                         -->
+  <!-- ============================================================ -->
+  <section class="topic" id="acm">
+    <div class="topic-header">
+      <div class="topic-num">3</div>
+      <div>
+        <h2>AWS Certificate Manager (ACM)</h2>
+        <p class="subtitle">Free public SSL/TLS certificates with auto-renewal</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional (most uses)</span>
+        <span class="pill managed">Fully Managed</span>
+        <span class="pill preventive">Preventive</span>
+      </p>
+
+      <h3>What is ACM?</h3>
+      <p>
+        <strong>AWS Certificate Manager (ACM)</strong> provisions, manages, and deploys public and private SSL/TLS certificates
+        for your AWS resources. <strong>Public certs are free</strong>, and ACM handles renewal automatically.
+      </p>
+
+      <h3>Two Types of Certificates</h3>
+      <div class="grid-2">
+        <div class="feature-card">
+          <h5>Public Certificates</h5>
+          <p>For internet-facing endpoints. Free. Auto-renewed by AWS as long as DNS validation stays in place.</p>
+        </div>
+        <div class="feature-card">
+          <h5>Private Certificates (ACM PCA)</h5>
+          <p>For internal apps / VPC traffic. Uses a Private CA. Paid service. Useful for mutual TLS (mTLS).</p>
+        </div>
+      </div>
+
+      <h3>How Validation Works</h3>
+      <ol>
+        <li><strong>DNS Validation (recommended):</strong> Add a CNAME record to your domain — ACM validates and continues to renew automatically.</li>
+        <li><strong>Email Validation:</strong> ACM emails the domain owner. Manual; not ideal for automation.</li>
+      </ol>
+
+      <h3>Where Can ACM Certs Be Used?</h3>
+      <ul>
+        <li><strong>ELB / ALB / NLB</strong> (regional)</li>
+        <li><strong>CloudFront</strong> — must be issued in <code>us-east-1</code> (N. Virginia) only</li>
+        <li><strong>API Gateway</strong></li>
+        <li><strong>App Runner</strong>, <strong>Cognito</strong>, <strong>Elastic Beanstalk</strong></li>
+      </ul>
+
+      <div class="callout warn">
+        <span class="label">Gotcha</span>
+        For CloudFront distributions, certificates <strong>must be in us-east-1</strong>. For ALB/NLB, the cert must be in the same region as the load balancer.
+      </div>
+
+      <h3>Cert Renewal</h3>
+      <ul>
+        <li>Public certs auto-renew up to 60 days before expiry (DNS validation must remain valid).</li>
+        <li>Imported certs (from outside AWS) are <strong>NOT</strong> auto-renewed — you must rotate them yourself.</li>
+      </ul>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 4. WAF & Shield                                                -->
+  <!-- ============================================================ -->
+  <section class="topic" id="waf-shield">
+    <div class="topic-header">
+      <div class="topic-num">4</div>
+      <div>
+        <h2>AWS WAF &amp; Shield</h2>
+        <p class="subtitle">Web Application Firewall (Layer 7) + DDoS Protection (Layer 3/4)</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill global">Global &amp; Regional</span>
+        <span class="pill preventive">Preventive</span>
+      </p>
+
+      <h3>AWS WAF — Web Application Firewall</h3>
+      <p>
+        <strong>WAF</strong> protects your web apps from common Layer 7 (HTTP/HTTPS) attacks like SQL injection, cross-site scripting (XSS),
+        bot traffic, and OWASP Top 10 threats. It works on <strong>CloudFront, ALB, API Gateway, AppSync, and App Runner</strong>.
+      </p>
+
+      <h4>Key WAF Building Blocks</h4>
+      <ul>
+        <li><strong>Web ACLs</strong> — collections of rules attached to an AWS resource</li>
+        <li><strong>Rules</strong> — conditions that allow/block/count/captcha requests</li>
+        <li><strong>Rule Groups</strong> — reusable bundles (your own or AWS Managed)</li>
+        <li><strong>AWS Managed Rules</strong> — pre-built protections (Common Rule Set, Known Bad Inputs, SQLi, etc.)</li>
+      </ul>
+
+      <h4>Common WAF Use Cases</h4>
+      <ul>
+        <li>Block requests from specific countries (geo-match)</li>
+        <li>Rate limiting (e.g. block IPs that send &gt; 2000 requests / 5 min)</li>
+        <li>Block SQL injection / XSS payloads</li>
+        <li>CAPTCHA challenges for suspicious bots</li>
+      </ul>
+
+      <h3>AWS Shield — DDoS Protection</h3>
+      <p>
+        <strong>Shield</strong> protects against DDoS attacks at Layers 3 (network) and 4 (transport).
+      </p>
+
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Cost</th><th>What You Get</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Shield Standard</strong></td>
+            <td>Free (auto-on)</td>
+            <td>Protection against common SYN/UDP floods, reflection attacks for all AWS customers (CloudFront, Route 53, ELB).</td>
+          </tr>
+          <tr>
+            <td><strong>Shield Advanced</strong></td>
+            <td>$3,000 / month + data fees</td>
+            <td>Enhanced detection, 24×7 DDoS Response Team (DRT), cost protection (refund for scaling charges during attack), Global Accelerator + EC2 protection, WAF included free.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout info">
+        <span class="label">Layered Defense</span>
+        <strong>Shield</strong> handles volumetric/network attacks (Layer 3/4). <strong>WAF</strong> handles application attacks (Layer 7).
+        Use them together on CloudFront/ALB for full coverage.
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 5. GuardDuty                                                   -->
+  <!-- ============================================================ -->
+  <section class="topic" id="guardduty">
+    <div class="topic-header">
+      <div class="topic-num">5</div>
+      <div>
+        <h2>Amazon GuardDuty</h2>
+        <p class="subtitle">Intelligent threat detection using ML &amp; threat intelligence</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional</span>
+        <span class="pill detective">Detective Control</span>
+      </p>
+
+      <h3>What is GuardDuty?</h3>
+      <p>
+        <strong>Amazon GuardDuty</strong> is a continuous, intelligent threat-detection service that uses machine learning,
+        anomaly detection, and integrated threat intelligence feeds to identify malicious or unauthorized behavior in your AWS account.
+      </p>
+
+      <div class="callout success">
+        <span class="label">Zero Setup</span>
+        Just enable it. No agents, no infrastructure changes. GuardDuty automatically analyzes the data sources below.
+      </div>
+
+      <h3>Data Sources GuardDuty Analyzes</h3>
+      <ul>
+        <li><strong>VPC Flow Logs</strong> — network traffic patterns</li>
+        <li><strong>CloudTrail Management Events</strong> — API activity (logins, IAM changes)</li>
+        <li><strong>CloudTrail S3 Data Events</strong> — object-level access</li>
+        <li><strong>DNS Logs</strong> — domain lookups (e.g. crypto-mining domains)</li>
+        <li><strong>EKS Audit Logs</strong> — Kubernetes API activity</li>
+        <li><strong>Lambda Network Activity</strong></li>
+        <li><strong>RDS Login Events</strong></li>
+        <li><strong>EBS Volume Malware Scanning</strong> (add-on)</li>
+      </ul>
+
+      <h3>Example Findings</h3>
+      <ul>
+        <li>EC2 instance communicating with a known crypto-mining IP</li>
+        <li>Root user logging in from an unusual country</li>
+        <li>IAM credentials leaked on GitHub being used externally</li>
+        <li>Unusual API call pattern (e.g. mass <code>ListBuckets</code>)</li>
+        <li>S3 bucket accessed from a Tor exit node</li>
+      </ul>
+
+      <h3>Severity Levels</h3>
+      <ul>
+        <li><strong>Low (1.0–3.9):</strong> Suspicious but possibly legitimate</li>
+        <li><strong>Medium (4.0–6.9):</strong> Investigate soon</li>
+        <li><strong>High (7.0–8.9):</strong> Likely real threat — act now</li>
+      </ul>
+
+      <h3>Integrations</h3>
+      <ul>
+        <li><strong>EventBridge</strong> → Slack / PagerDuty / Lambda for auto-remediation</li>
+        <li><strong>AWS Security Hub</strong> central dashboard</li>
+        <li><strong>AWS Detective</strong> for deeper investigation</li>
+      </ul>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 6. Macie                                                       -->
+  <!-- ============================================================ -->
+  <section class="topic" id="macie">
+    <div class="topic-header">
+      <div class="topic-num">6</div>
+      <div>
+        <h2>Amazon Macie</h2>
+        <p class="subtitle">Sensitive data discovery for S3 (PII, PHI, secrets)</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional</span>
+        <span class="pill detective">Detective Control</span>
+      </p>
+
+      <h3>What is Macie?</h3>
+      <p>
+        <strong>Amazon Macie</strong> is a fully managed data security service that uses machine learning and pattern matching
+        to discover and protect <strong>sensitive data stored in Amazon S3</strong>.
+      </p>
+
+      <h3>What Macie Can Detect</h3>
+      <ul>
+        <li><strong>PII</strong> — names, addresses, phone numbers, SSN, passport IDs</li>
+        <li><strong>PHI</strong> — medical records (HIPAA)</li>
+        <li><strong>Financial Data</strong> — credit card numbers, bank accounts</li>
+        <li><strong>Credentials</strong> — AWS access keys, private keys, OAuth tokens accidentally stored in S3</li>
+        <li><strong>Custom data identifiers</strong> using regex (e.g. employee IDs)</li>
+      </ul>
+
+      <h3>What Macie Tells You</h3>
+      <ul>
+        <li>Which S3 buckets contain sensitive data</li>
+        <li>Which buckets are <strong>public</strong>, <strong>unencrypted</strong>, or <strong>shared with other accounts</strong></li>
+        <li>Bucket inventory + risk score</li>
+      </ul>
+
+      <h3>Two Types of Findings</h3>
+      <div class="grid-2">
+        <div class="feature-card">
+          <h5>Policy Findings</h5>
+          <p>Bucket-level issues: public access, no encryption, shared with unknown accounts.</p>
+        </div>
+        <div class="feature-card">
+          <h5>Sensitive Data Findings</h5>
+          <p>Object-level issues: a CSV file contains 10,000 credit card numbers.</p>
+        </div>
+      </div>
+
+      <h3>Common Use Cases</h3>
+      <ul>
+        <li>Compliance (GDPR, HIPAA, PCI-DSS) — prove you know where sensitive data lives</li>
+        <li>Detecting accidentally exposed PII</li>
+        <li>Pre-migration audits (before opening up an S3 bucket)</li>
+      </ul>
+
+      <div class="callout tip">
+        <span class="label">Macie vs GuardDuty</span>
+        <strong>Macie</strong> = "what's IN my S3 data?" (content-aware).<br />
+        <strong>GuardDuty</strong> = "who's BEHAVING strangely in my account?" (activity-aware).
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- 7. Inspector                                                   -->
+  <!-- ============================================================ -->
+  <section class="topic" id="inspector">
+    <div class="topic-header">
+      <div class="topic-num">7</div>
+      <div>
+        <h2>Amazon Inspector</h2>
+        <p class="subtitle">Automated vulnerability scanning for EC2, ECR, &amp; Lambda</p>
+      </div>
+    </div>
+    <div class="topic-body">
+
+      <p>
+        <span class="pill regional">Regional</span>
+        <span class="pill detective">Detective Control</span>
+      </p>
+
+      <h3>What is Inspector?</h3>
+      <p>
+        <strong>Amazon Inspector</strong> is an automated vulnerability management service that continuously scans
+        AWS workloads for software vulnerabilities (CVEs) and unintended network exposure.
+      </p>
+
+      <h3>What Inspector Scans</h3>
+      <table>
+        <thead>
+          <tr><th>Resource</th><th>What's Checked</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>EC2 Instances</strong></td>
+            <td>OS package vulnerabilities (CVEs) + network reachability findings. Uses SSM Agent (no Inspector agent needed in v2).</td>
+          </tr>
+          <tr>
+            <td><strong>ECR Container Images</strong></td>
+            <td>Scans images on push and continuously rescans for newly published CVEs.</td>
+          </tr>
+          <tr>
+            <td><strong>Lambda Functions</strong></td>
+            <td>Scans function code &amp; layers for vulnerable third-party packages.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>How It Works</h3>
+      <ol>
+        <li>Enable Inspector in the account/Organization.</li>
+        <li>Inspector pulls software inventory from SSM, ECR, and Lambda automatically.</li>
+        <li>It cross-references inventory against CVE feeds (CISA, NVD, vendor advisories).</li>
+        <li>Findings are scored using a contextualized <strong>Inspector risk score</strong> (CVSS adjusted by exploitability and reachability).</li>
+      </ol>
+
+      <h3>Sample Findings</h3>
+      <ul>
+        <li>EC2 instance running OpenSSL with CVE-2023-XXXX</li>
+        <li>ECR image based on outdated Alpine with critical glibc vuln</li>
+        <li>Lambda function using a vulnerable version of <code>log4j</code></li>
+        <li>EC2 security group exposing port 22 to <code>0.0.0.0/0</code></li>
+      </ul>
+
+      <h3>Integrations</h3>
+      <ul>
+        <li><strong>AWS Security Hub</strong> — centralized findings dashboard</li>
+        <li><strong>EventBridge</strong> — automated remediation pipelines</li>
+        <li><strong>AWS Organizations</strong> — enable across all accounts centrally</li>
+      </ul>
+
+      <div class="callout info">
+        <span class="label">Inspector vs GuardDuty vs Macie — Quick Cheat Sheet</span>
+        <ul style="margin-top:8px;">
+          <li><strong>Inspector</strong> — Are my workloads <em>vulnerable</em>? (CVE scanning)</li>
+          <li><strong>GuardDuty</strong> — Is someone <em>attacking</em> me right now? (threat detection)</li>
+          <li><strong>Macie</strong> — Is sensitive <em>data</em> exposed in S3? (data classification)</li>
+        </ul>
+      </div>
+
+      <a class="back-top" href="#">↑ Back to top</a>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="topic" id="summary">
+    <div class="topic-header">
+      <div class="topic-num" style="background:var(--accent-3);">★</div>
+      <div>
+        <h2>One-Page Summary</h2>
+        <p class="subtitle">Memorize this table for the exam &amp; daily work</p>
+      </div>
+    </div>
+    <div class="topic-body">
+      <table>
+        <thead>
+          <tr><th>Service</th><th>Type</th><th>Layer / Scope</th><th>One-line Purpose</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>KMS</td><td>Preventive</td><td>Cryptography</td><td>Manage &amp; rotate encryption keys</td></tr>
+          <tr><td>Secrets Manager</td><td>Preventive</td><td>Identity / Secrets</td><td>Store &amp; auto-rotate passwords / API keys</td></tr>
+          <tr><td>ACM</td><td>Preventive</td><td>TLS</td><td>Free auto-renewing SSL certs</td></tr>
+          <tr><td>WAF</td><td>Preventive</td><td>Layer 7 (HTTP)</td><td>Block SQLi, XSS, bots</td></tr>
+          <tr><td>Shield</td><td>Preventive</td><td>Layer 3/4</td><td>DDoS protection</td></tr>
+          <tr><td>GuardDuty</td><td>Detective</td><td>Account-wide</td><td>Threat detection (ML on logs)</td></tr>
+          <tr><td>Macie</td><td>Detective</td><td>S3 data</td><td>Find sensitive data (PII / PHI)</td></tr>
+          <tr><td>Inspector</td><td>Detective</td><td>Workloads</td><td>CVE scanning of EC2 / ECR / Lambda</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  AWS Security · Section 17 — Notes prepared for revision · Last updated 2026
+</footer>
+
+</body>
+</html>
