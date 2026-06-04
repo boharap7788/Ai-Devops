@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes on kind — Interactive Lab</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/atom-one-dark.min.css">
+<style>
+  :root {
+    --bg:        #0b1020;
+    --bg-2:      #0f172a;
+    --bg-3:      #111a35;
+    --panel:     #131c3a;
+    --panel-2:   #1a2547;
+    --border:    #1f2b52;
+    --text:      #e5e9f5;
+    --text-dim:  #95a0c2;
+    --text-dim2: #6b7799;
+    --accent:    #326CE5;
+    --accent-2:  #4a86ff;
+    --accent-soft:#1c2f5b;
+    --good:      #21c19a;
+    --warn:      #f5a623;
+    --bad:       #ef4f5d;
+    --code-bg:   #0a1128;
+    --shadow:    0 10px 30px rgba(0,0,0,.35);
+    --radius:    14px;
+  }
+  html[data-theme="light"] {
+    --bg:        #f5f7fb;
+    --bg-2:      #ffffff;
+    --bg-3:      #f0f3fa;
+    --panel:     #ffffff;
+    --panel-2:   #f5f7fb;
+    --border:    #e3e7f1;
+    --text:      #0e1525;
+    --text-dim:  #4a5575;
+    --text-dim2: #7a849f;
+    --accent:    #326CE5;
+    --accent-2:  #1e57d6;
+    --accent-soft:#e2ecff;
+    --good:      #0c9e7a;
+    --warn:      #c97a06;
+    --bad:       #c93747;
+    --code-bg:   #0a1128;
+    --shadow:    0 8px 24px rgba(15,30,80,.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    min-height: 100vh;
+  }
+  ::selection { background: var(--accent); color: white; }
+
+  /* ============ Top header ============ */
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11,16,32,.85);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  html[data-theme="light"] header.topbar { background: rgba(255,255,255,.85); }
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    max-width: 1600px; margin: 0 auto;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 12px;
+    font-weight: 700; font-size: 16px; letter-spacing: -.01em;
+  }
+  .brand-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    color: white; font-weight: 800; font-size: 16px;
+    box-shadow: 0 4px 14px rgba(50,108,229,.45);
+  }
+  .brand small { display: block; font-weight: 500; color: var(--text-dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+
+  .search {
+    position: relative;
+    max-width: 460px; width: 100%;
+    justify-self: center;
+  }
+  .search input {
+    width: 100%;
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 14px 9px 38px;
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none; transition: border .15s, box-shadow .15s;
+  }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search::before {
+    content: ""; position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px;
+    background: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23889' stroke-width='2' stroke-linecap='round'><circle cx='11' cy='11' r='7'/><path d='m20 20-3.5-3.5'/></svg>") center/contain no-repeat;
+    pointer-events: none;
+  }
+
+  .top-actions { display: flex; align-items: center; gap: 8px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-dim);
+  }
+  .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); }
+  .iconbtn {
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel); color: var(--text);
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .iconbtn:hover { background: var(--panel-2); }
+  .iconbtn:active { transform: scale(.96); }
+
+  /* ============ Layout ============ */
+  .shell {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  @media (max-width: 980px) {
+    .shell { grid-template-columns: 1fr; padding: 16px; }
+    nav.sidebar { position: static !important; max-height: none !important; }
+  }
+
+  /* ============ Sidebar ============ */
+  nav.sidebar {
+    position: sticky;
+    top: 76px;
+    align-self: start;
+    max-height: calc(100vh - 100px);
+    overflow: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  nav.sidebar h4 {
+    margin: 4px 8px 10px;
+    font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--text-dim2); font-weight: 700;
+  }
+  nav.sidebar ol { list-style: none; padding: 0; margin: 0 0 16px; }
+  nav.sidebar a.toc {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center; gap: 8px;
+    padding: 7px 10px;
+    color: var(--text-dim);
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 13.5px;
+    transition: background .15s, color .15s;
+  }
+  nav.sidebar a.toc:hover { background: var(--panel-2); color: var(--text); }
+  nav.sidebar a.toc.active { background: var(--accent-soft); color: var(--text); }
+  nav.sidebar a.toc.active .num { color: var(--accent); }
+  nav.sidebar a.toc .num {
+    font-weight: 700;
+    color: var(--text-dim2); font-size: 12px;
+    width: 22px; text-align: right;
+  }
+  nav.sidebar a.toc.done {
+    color: var(--text-dim2);
+  }
+  nav.sidebar a.toc.done .num::after {
+    content: "✓"; color: var(--good); margin-left: 4px; font-weight: 700;
+  }
+  nav.sidebar a.toc .badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--panel-2); color: var(--text-dim2);
+  }
+  nav.sidebar a.toc .badge.net { background: rgba(50,108,229,.15); color: #6e9bff; }
+  nav.sidebar a.toc .badge.sec { background: rgba(245,166,35,.13); color: var(--warn); }
+  nav.sidebar a.toc .badge.scale { background: rgba(33,193,154,.13); color: var(--good); }
+  nav.sidebar a.toc .badge.sched { background: rgba(168,116,255,.13); color: #a874ff; }
+
+  .progress-wrap {
+    background: var(--panel-2);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .progress-top {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text-dim); margin-bottom: 8px;
+  }
+  .progress-bar {
+    height: 6px; background: var(--bg-3); border-radius: 999px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    width: 0%;
+    transition: width .35s ease;
+  }
+  .reset-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    background: transparent; color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer; font-size: 11.5px;
+  }
+  .reset-btn:hover { color: var(--bad); border-color: var(--bad); }
+
+  /* ============ Main ============ */
+  main { min-width: 0; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 24px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: ""; position: absolute; right: -120px; top: -100px;
+    width: 360px; height: 360px;
+    background: radial-gradient(circle, rgba(50,108,229,.22) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    margin: 0 0 8px; font-size: 28px; font-weight: 700; letter-spacing: -.02em;
+  }
+  .hero p { margin: 0 0 16px; color: var(--text-dim); max-width: 720px; }
+  .hero .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    background: var(--bg-3);
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+    color: var(--text-dim);
+  }
+  .chip.kw { color: var(--accent); border-color: rgba(50,108,229,.4); background: var(--accent-soft); }
+
+  /* Section card */
+  section.step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    margin-bottom: 20px;
+    scroll-margin-top: 90px;
+    box-shadow: var(--shadow);
+    transition: opacity .2s, transform .2s;
+  }
+  section.step.hidden { display: none; }
+
+  .step-head {
+    display: flex; align-items: center; gap: 16px;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+  }
+  .step-num {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 800; font-size: 16px;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+  }
+  section.step.done .step-num { background: rgba(33,193,154,.15); color: var(--good); }
+  .step-title { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -.01em; flex: 1; }
+  .step-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+    background: var(--bg-3); color: var(--text-dim2);
+    letter-spacing: .03em; text-transform: uppercase;
+  }
+  .tag.net { background: rgba(50,108,229,.13); color: #6e9bff; }
+  .tag.sec { background: rgba(245,166,35,.13); color: var(--warn); }
+  .tag.scale { background: rgba(33,193,154,.13); color: var(--good); }
+  .tag.sched { background: rgba(168,116,255,.13); color: #a874ff; }
+  .tag.core { background: rgba(50,108,229,.13); color: #6e9bff; }
+  .tag.config { background: rgba(33,193,154,.13); color: var(--good); }
+
+  .step-sub {
+    color: var(--text-dim);
+    margin: 4px 0 18px 54px;
+    font-size: 14px;
+  }
+  .step-body { padding-left: 54px; }
+  @media (max-width: 640px) {
+    .step-sub, .step-body { padding-left: 0; margin-left: 0; }
+  }
+
+  .step-body h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text-dim2);
+    margin: 22px 0 10px;
+    font-weight: 700;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .step-body h3::before {
+    content: ""; width: 14px; height: 2px; background: var(--accent); border-radius: 2px;
+  }
+  .step-body h3.verify::before { background: var(--good); }
+  .step-body h3.debug::before { background: var(--warn); }
+  .step-body p { color: var(--text-dim); margin: 8px 0; }
+  .step-body ul { color: var(--text-dim); padding-left: 22px; }
+  .step-body li { margin: 4px 0; }
+
+  /* Code block + copy button */
+  .code-wrap {
+    position: relative;
+    margin: 10px 0 12px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+  }
+  .code-wrap pre { margin: 0; padding: 14px 16px; overflow: auto; font-size: 13px; line-height: 1.55; }
+  .code-wrap code { font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(255,255,255,.06);
+    color: #d6dcec;
+    border: 1px solid rgba(255,255,255,.1);
+    padding: 5px 10px; font-size: 11px; font-weight: 600;
+    border-radius: 7px; cursor: pointer;
+    opacity: 0; transition: opacity .15s, background .15s;
+    backdrop-filter: blur(4px);
+  }
+  .code-wrap:hover .copy-btn { opacity: 1; }
+  .copy-btn:hover { background: rgba(255,255,255,.14); }
+  .copy-btn.copied { background: var(--good); color: white; border-color: var(--good); opacity: 1; }
+
+  /* Note / callout */
+  .callout {
+    background: var(--bg-3);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 12px 0;
+    font-size: 13.5px;
+    color: var(--text-dim);
+  }
+  .callout strong { color: var(--text); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.tip  { border-left-color: var(--good); }
+
+  /* Mark complete */
+  .mark-done {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 22px;
+    padding: 9px 14px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    border-radius: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 13px; font-weight: 600;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .mark-done:hover { color: var(--text); border-color: var(--accent); }
+  .mark-done.done {
+    background: rgba(33,193,154,.13);
+    border-color: rgba(33,193,154,.4);
+    color: var(--good);
+  }
+  .mark-done .icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* Diagrams */
+  .diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    scroll-margin-top: 90px;
+  }
+  .diagram h2 {
+    margin: 0 0 16px;
+    font-size: 18px; font-weight: 700; letter-spacing: -.01em;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .diagram h2::before {
+    content: ""; width: 4px; height: 22px;
+    background: linear-gradient(180deg, var(--accent), var(--accent-2));
+    border-radius: 2px;
+  }
+  .mermaid { background: transparent; text-align: center; }
+
+  /* Cheatsheet drawer */
+  details.cheatsheet {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  details.cheatsheet > summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 20px 24px;
+    font-size: 17px; font-weight: 700;
+    display: flex; align-items: center; gap: 12px;
+    user-select: none;
+  }
+  details.cheatsheet > summary::-webkit-details-marker { display: none; }
+  details.cheatsheet > summary::before {
+    content: "▸";
+    color: var(--accent);
+    transition: transform .2s;
+  }
+  details.cheatsheet[open] > summary::before { transform: rotate(90deg); }
+  details.cheatsheet > summary:hover { background: var(--panel-2); }
+  .cheat-body { padding: 0 24px 24px; }
+  .cheat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .cheat-card {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .cheat-card h4 { margin: 0 0 8px; font-size: 13px; color: var(--accent); letter-spacing: -.01em; }
+  .cheat-card .code-wrap { margin: 6px 0 0; }
+  .cheat-card .code-wrap pre { padding: 10px 12px; font-size: 12.5px; }
+
+  /* Footer */
+  footer.endnote {
+    text-align: center;
+    color: var(--text-dim2);
+    font-size: 13px;
+    padding: 30px 16px 60px;
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--good); color: white;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .2s;
+    z-index: 200;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Back-to-top */
+  .top-jump {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: var(--accent); color: white;
+    display: grid; place-items: center;
+    border: none;
+    box-shadow: 0 8px 24px rgba(50,108,229,.45);
+    cursor: pointer;
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s, transform .15s;
+    z-index: 100;
+  }
+  .top-jump.show { opacity: 1; pointer-events: auto; }
+  .top-jump:hover { transform: translateY(-2px); }
+
+  /* Scrollbars */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim2); }
+
+  /* Tweaks */
+  a { color: var(--accent-2); }
+  hr.soft { border: 0; border-top: 1px dashed var(--border); margin: 18px 0; }
+
+  /* No-results state */
+  .empty {
+    text-align: center; color: var(--text-dim);
+    padding: 60px 20px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    display: none;
+  }
+  .empty.show { display: block; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-logo">K8s</div>
+      <div>
+        Kubernetes on <code style="color:var(--accent);font-weight:700">kind</code> — Interactive Lab
+        <small>Spring Boot · 14 steps · Local-only</small>
+      </div>
+    </div>
+    <div class="search">
+      <input id="searchInput" type="text" placeholder="Search steps, commands, concepts… (press /)">
+    </div>
+    <div class="top-actions">
+      <a class="pill" href="applications/catalog.html" style="text-decoration:none;color:var(--accent-2);border-color:rgba(50,108,229,.4);background:var(--accent-soft)" title="What kinds of apps you can deploy on K8s">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        App catalog
+      </a>
+      <a class="pill" href="architecture.html" style="text-decoration:none;color:var(--accent-2);border-color:rgba(50,108,229,.4);background:var(--accent-soft)" title="See how kubectl apply flows through Kubernetes">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+        Architecture &amp; flow
+      </a>
+      <span class="pill"><span class="dot"></span><span id="progressPill">0/21</span></span>
+      <button class="iconbtn" id="themeToggle" title="Toggle theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="themeIcon">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+  <nav class="sidebar" id="sidebar">
+    <div class="progress-wrap">
+      <div class="progress-top">
+        <span>Progress</span>
+        <span><strong id="progressPct">0%</strong></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <button class="reset-btn" id="resetBtn">Reset progress</button>
+    </div>
+
+    <h4>The Lab</h4>
+    <ol id="tocList">
+      <li><a class="toc" href="#overview"><span class="num">·</span><span>Overview &amp; Architecture</span></a></li>
+      <li><a class="toc" data-step="0"  href="#step-0"><span class="num">0</span><span>Prerequisites</span></a></li>
+      <li><a class="toc" data-step="1"  href="#step-1"><span class="num">1</span><span>Create kind cluster</span><span class="badge">core</span></a></li>
+      <li><a class="toc" data-step="2"  href="#step-2"><span class="num">2</span><span>Build &amp; load image</span><span class="badge">core</span></a></li>
+      <li><a class="toc" data-step="3"  href="#step-3"><span class="num">3</span><span>Namespaces &amp; Quota</span></a></li>
+      <li><a class="toc" data-step="4"  href="#step-4"><span class="num">4</span><span>Pods</span></a></li>
+      <li><a class="toc" data-step="5"  href="#step-5"><span class="num">5</span><span>Deployments &amp; Scaling</span><span class="badge scale">scale</span></a></li>
+      <li><a class="toc" data-step="6"  href="#step-6"><span class="num">6</span><span>Services</span><span class="badge net">net</span></a></li>
+      <li><a class="toc" data-step="7"  href="#step-7"><span class="num">7</span><span>ConfigMaps &amp; Secrets</span></a></li>
+      <li><a class="toc" data-step="8"  href="#step-8"><span class="num">8</span><span>Requests &amp; HPA</span><span class="badge scale">scale</span></a></li>
+      <li><a class="toc" data-step="9"  href="#step-9"><span class="num">9</span><span>RBAC</span><span class="badge sec">sec</span></a></li>
+      <li><a class="toc" data-step="10" href="#step-10"><span class="num">10</span><span>Taints &amp; Affinity</span><span class="badge sched">sched</span></a></li>
+      <li><a class="toc" data-step="11" href="#step-11"><span class="num">11</span><span>Ingress</span><span class="badge net">net</span></a></li>
+      <li><a class="toc" data-step="12" href="#step-12"><span class="num">12</span><span>Deployment Strategies</span><span class="badge scale">scale</span></a></li>
+      <li><a class="toc" data-step="13" href="#step-13"><span class="num">13</span><span>StatefulSet</span><span class="badge sched">stateful</span></a></li>
+      <li><a class="toc" data-step="14" href="#step-14"><span class="num">14</span><span>DaemonSet</span><span class="badge sched">node</span></a></li>
+      <li><a class="toc" data-step="15" href="#step-15"><span class="num">15</span><span>Job &amp; CronJob</span><span class="badge">batch</span></a></li>
+      <li><a class="toc" data-step="16" href="#step-16"><span class="num">16</span><span>Storage (PV / PVC)</span><span class="badge">storage</span></a></li>
+      <li><a class="toc" data-step="17" href="#step-17"><span class="num">17</span><span>Init Containers</span></a></li>
+      <li><a class="toc" data-step="18" href="#step-18"><span class="num">18</span><span>NetworkPolicy</span><span class="badge sec">netpol</span></a></li>
+      <li><a class="toc" data-step="19" href="#step-19"><span class="num">19</span><span>PodDisruptionBudget</span><span class="badge scale">PDB</span></a></li>
+      <li><a class="toc" data-step="20" href="#step-20"><span class="num">20</span><span>Cleanup</span></a></li>
+      <li><a class="toc" data-step="21" href="#step-21"><span class="num">21</span><span>What's next</span></a></li>
+    </ol>
+
+    <h4>Reference</h4>
+    <ol>
+      <li><a class="toc" href="#concepts"><span class="num">·</span><span>K8s object map</span></a></li>
+      <li><a class="toc" href="#cheatsheet"><span class="num">·</span><span>kubectl cheatsheet</span></a></li>
+    </ol>
+  </nav>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero" id="overview">
+      <h1>From zero to HPA, Ingress, RBAC &amp; Canary — locally.</h1>
+      <p>
+        A copy-paste-able lab that runs a Spring Boot app on a 3-node
+        <strong>kind</strong> cluster. Each step has an Apply block, a
+        Verify block, and a Debug block — and a "Mark complete" button so
+        you can pick up exactly where you left off.
+      </p>
+      <div class="chips">
+        <span class="chip kw">14 steps</span>
+        <span class="chip">3-node kind cluster</span>
+        <span class="chip">Spring Boot · Java 17</span>
+        <span class="chip">Pods · Deployments · Services</span>
+        <span class="chip">ConfigMaps · Secrets</span>
+        <span class="chip">HPA · metrics-server</span>
+        <span class="chip">RBAC</span>
+        <span class="chip">Taints · Affinity</span>
+        <span class="chip">Ingress NGINX</span>
+        <span class="chip">Rolling · Recreate · Blue/Green · Canary</span>
+      </div>
+    </section>
+
+    <!-- Cluster topology -->
+    <div class="diagram" id="topology">
+      <h2>Cluster topology</h2>
+      <div class="mermaid">
+flowchart TB
+    subgraph host["Your laptop"]
+        direction TB
+        curl["curl localhost:80&#47;30080"]
+    end
+    subgraph cluster["kind cluster · k8s-learn"]
+        direction TB
+        cp(["control-plane<br/>ingress-ready=true<br/>:80 :443 :30080"])
+        subgraph workers["Worker nodes"]
+            direction LR
+            w1(["worker<br/>tier=frontend<br/>disktype=ssd"])
+            w2(["worker2<br/>tier=backend<br/>disktype=hdd"])
+        end
+        subgraph ns["Namespace: demo"]
+            direction TB
+            ing["Ingress<br/>(NGINX controller)"]
+            svc["Service<br/>(ClusterIP / NodePort)"]
+            deploy["Deployment"]
+            rs["ReplicaSet"]
+            pod1["Pod"]
+            pod2["Pod"]
+            pod3["Pod"]
+            ing --> svc
+            svc --> pod1
+            svc --> pod2
+            svc --> pod3
+            deploy --> rs
+            rs --> pod1
+            rs --> pod2
+            rs --> pod3
+        end
+        cp --- workers
+        workers --- ns
+    end
+    curl --> cp
+    classDef node fill:#1c2f5b,stroke:#326CE5,color:#e5e9f5,stroke-width:1.5px
+    classDef k8s fill:#131c3a,stroke:#326CE5,color:#e5e9f5
+    class cp,w1,w2 node
+    class ing,svc,deploy,rs,pod1,pod2,pod3 k8s
+      </div>
+    </div>
+
+    <!-- ============ STEPS ============ -->
+    <!-- Step 0 -->
+    <section class="step" id="step-0" data-step="0" data-tags="prereq tools brew docker kind kubectl helm install">
+      <div class="step-head">
+        <div class="step-num">0</div>
+        <h2 class="step-title">Prerequisites</h2>
+        <div class="step-tags"><span class="tag">tools</span></div>
+      </div>
+      <p class="step-sub">Install once. macOS commands shown — adjust for Linux.</p>
+      <div class="step-body">
+        <h3>Required tools</h3>
+        <ul>
+          <li><strong>Docker Desktop / OrbStack / Colima</strong> — kind nodes ARE docker containers.</li>
+          <li><strong>kind</strong> — spin up local k8s clusters.</li>
+          <li><strong>kubectl</strong> — talk to the cluster.</li>
+          <li><strong>helm</strong> (optional) — handy for ingress-nginx.</li>
+        </ul>
+        <div class="code-wrap"><pre><code class="language-bash">brew install --cask docker
+brew install kind kubectl helm</code></pre></div>
+
+        <h3 class="verify">Verify</h3>
+        <div class="code-wrap"><pre><code class="language-bash">docker version
+kind version
+kubectl version --client</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 1 -->
+    <section class="step" id="step-1" data-step="1" data-tags="kind cluster create nodes context kubeconfig">
+      <div class="step-head">
+        <div class="step-num">1</div>
+        <h2 class="step-title">Create the kind cluster</h2>
+        <div class="step-tags"><span class="tag core">core</span></div>
+      </div>
+      <p class="step-sub">1 control-plane + 2 worker nodes, port-mapped for Ingress &amp; NodePort.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">cd k8s-learning
+kind create cluster --config kind/kind-cluster.yaml</code></pre></div>
+
+        <h3 class="verify">Verify (3 nodes)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl cluster-info --context kind-k8s-learn
+kubectl get nodes -o wide
+kubectl get nodes --show-labels</code></pre></div>
+
+        <div class="callout tip">
+          You should see <code>k8s-learn-control-plane</code> (ingress-ready),
+          <code>k8s-learn-worker</code> (tier=frontend, disktype=ssd),
+          and <code>k8s-learn-worker2</code> (tier=backend, disktype=hdd).
+        </div>
+
+        <h3 class="debug">Debug / cleanup</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl config use-context kind-k8s-learn       # switch context
+docker ps | grep k8s-learn                      # the kind nodes (as docker containers)
+kind delete cluster --name k8s-learn            # nuke and restart</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 2 -->
+    <section class="step" id="step-2" data-step="2" data-tags="docker build image kind load tag dockerfile multi-stage">
+      <div class="step-head">
+        <div class="step-num">2</div>
+        <h2 class="step-title">Build &amp; load the Java image into kind</h2>
+        <div class="step-tags"><span class="tag core">core</span></div>
+      </div>
+      <p class="step-sub">kind nodes have their own image cache. Build it, then push it INTO every node.</p>
+      <div class="step-body">
+        <div class="callout warn">
+          <strong>Run from <code>k8s-learning/</code>, not <code>k8s-learning/docker/</code>.</strong>
+          The Dockerfile does <code>COPY app/pom.xml ...</code> — the build context (trailing <code>.</code>) must be the lab root.
+        </div>
+
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">cd /path/to/k8s-learning
+docker build -t k8s-demo:1.0.0 -f docker/Dockerfile .
+docker tag    k8s-demo:1.0.0  k8s-demo:1.0.1
+
+kind load docker-image k8s-demo:1.0.0 --name k8s-learn
+kind load docker-image k8s-demo:1.0.1 --name k8s-learn</code></pre></div>
+
+        <h3 class="verify">Verify (image present on a node)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">docker exec -it k8s-learn-worker crictl images | grep k8s-demo</code></pre></div>
+
+        <h3 class="debug">Common build errors</h3>
+        <ul>
+          <li><code>"/app/pom.xml": not found</code> — you ran the build from <code>docker/</code>. <code>cd</code> up one level.</li>
+          <li><code>no match for platform in manifest</code> — the base image isn't published for your CPU arch. Dockerfile here uses <code>eclipse-temurin:17-jre</code> (multi-arch). Use <code>amazoncorretto:17-alpine</code> if you want Alpine + arm64.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Step 3 -->
+    <section class="step" id="step-3" data-step="3" data-tags="namespace resourcequota limitrange isolation tenant">
+      <div class="step-head">
+        <div class="step-num">3</div>
+        <h2 class="step-title">Namespaces, ResourceQuota &amp; LimitRange</h2>
+        <div class="step-tags"><span class="tag">config</span></div>
+      </div>
+      <p class="step-sub">Virtual sub-clusters. Quota caps the namespace total; LimitRange sets per-pod defaults.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/01-namespace/namespace.yaml
+kubectl apply -f manifests/01-namespace/resource-quota.yaml</code></pre></div>
+
+        <h3 class="verify">Verify</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get ns
+kubectl describe ns demo
+kubectl get resourcequota,limitrange -n demo
+kubectl describe resourcequota demo-quota -n demo
+kubectl describe limitrange demo-limits -n demo</code></pre></div>
+
+        <div class="callout">
+          <strong>ResourceQuota</strong> caps the namespace total.
+          <strong>LimitRange</strong> applies per-pod defaults + min/max.
+          Both are namespace-scoped.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 4 -->
+    <section class="step" id="step-4" data-step="4" data-tags="pod probes liveness readiness startup sidecar multi-container logs exec port-forward">
+      <div class="step-head">
+        <div class="step-num">4</div>
+        <h2 class="step-title">Pods — the smallest unit</h2>
+        <div class="step-tags"><span class="tag">core</span></div>
+      </div>
+      <p class="step-sub">Bare Pods so you understand what a Deployment manages. Includes probes &amp; sidecar.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/02-pods/01-pod-simple.yaml
+kubectl apply -f manifests/02-pods/02-pod-with-probes.yaml
+kubectl apply -f manifests/02-pods/03-pod-multi-container.yaml</code></pre></div>
+
+        <h3 class="verify">Inspect &amp; talk to a Pod</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get pods -n demo -o wide
+kubectl describe pod java-pod-probes -n demo
+kubectl logs -f -n demo java-pod-probes
+kubectl logs -n demo java-pod-sidecar -c log-sidecar    # specific container
+kubectl exec -it -n demo java-pod-probes -- sh
+kubectl port-forward -n demo pod/java-pod-probes 8080:8080</code></pre></div>
+        <div class="code-wrap"><pre><code class="language-bash">curl localhost:8080/
+curl localhost:8080/info</code></pre></div>
+
+        <h3 class="debug">Sidecar — shared volume in action</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl exec -n demo java-pod-sidecar -c java-app    -- ls -la /var/log/app
+kubectl exec -n demo java-pod-sidecar -c log-sidecar -- tail -5 /var/log/app/k8s-demo.log</code></pre></div>
+
+        <h3>Cleanup (move to Deployments)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl delete -f manifests/02-pods/</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 5 -->
+    <section class="step" id="step-5" data-step="5" data-tags="deployment replicaset scale rollout restart undo history self-healing">
+      <div class="step-head">
+        <div class="step-num">5</div>
+        <h2 class="step-title">Deployments &amp; Scaling</h2>
+        <div class="step-tags"><span class="tag core">core</span><span class="tag scale">scale</span></div>
+      </div>
+      <p class="step-sub">Deployment → ReplicaSet → Pods. Self-healing, rolling, rollback.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/03-deployments/01-deployment.yaml
+kubectl get deploy,rs,pods -n demo
+kubectl rollout status deploy/k8s-demo -n demo</code></pre></div>
+
+        <h3 class="verify">Scale + self-heal</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl scale deploy/k8s-demo -n demo --replicas=5
+kubectl get pods -n demo -w           # Ctrl-C to stop watching
+kubectl scale deploy/k8s-demo -n demo --replicas=2
+
+POD=$(kubectl get pods -n demo -l app=k8s-demo -o jsonpath='{.items[0].metadata.name}')
+kubectl delete pod $POD -n demo       # watch a fresh pod replace it instantly</code></pre></div>
+
+        <h3 class="debug">Rollout &amp; rollback</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl set image deploy/k8s-demo java-app=k8s-demo:1.0.1 -n demo
+kubectl rollout status  deploy/k8s-demo -n demo
+kubectl rollout history deploy/k8s-demo -n demo
+kubectl rollout undo    deploy/k8s-demo -n demo</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 6 -->
+    <section class="step" id="step-6" data-step="6" data-tags="service clusterip nodeport headless dns endpoints selector">
+      <div class="step-head">
+        <div class="step-num">6</div>
+        <h2 class="step-title">Services — ClusterIP, NodePort, Headless</h2>
+        <div class="step-tags"><span class="tag net">net</span></div>
+      </div>
+      <p class="step-sub">Stable virtual IPs that load-balance to Pods. Three types you'll actually use.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/04-services/01-service-clusterip.yaml
+kubectl apply -f manifests/04-services/02-service-nodeport.yaml
+kubectl apply -f manifests/04-services/03-service-headless.yaml
+
+kubectl get svc,endpoints -n demo
+kubectl describe svc k8s-demo -n demo</code></pre></div>
+
+        <h3 class="verify">Test ClusterIP from inside the cluster</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl run -n demo tmp --rm -it --restart=Never --image=curlimages/curl -- \
+  sh -c 'curl -s http://k8s-demo/info'</code></pre></div>
+
+        <h3 class="verify">Test NodePort from your laptop</h3>
+        <div class="code-wrap"><pre><code class="language-bash">curl http://localhost:30080/info</code></pre></div>
+
+        <h3 class="verify">Inspect Headless DNS (one A record per Pod)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl run -n demo tmp --rm -it --restart=Never --image=busybox -- \
+  nslookup k8s-demo-headless.demo.svc.cluster.local</code></pre></div>
+
+        <div class="callout">
+          Empty <code>endpoints</code>? The Service's selector doesn't match any Ready pod.
+          Check <code>kubectl get pods -n demo --show-labels</code>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 7 -->
+    <section class="step" id="step-7" data-step="7" data-tags="configmap secret env mount base64 envfrom rollout restart">
+      <div class="step-head">
+        <div class="step-num">7</div>
+        <h2 class="step-title">ConfigMaps &amp; Secrets</h2>
+        <div class="step-tags"><span class="tag">config</span><span class="tag sec">secrets</span></div>
+      </div>
+      <p class="step-sub">Externalised config + sensitive data injected as env vars OR mounted files.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/05-config-secrets/01-configmap.yaml
+kubectl apply -f manifests/05-config-secrets/02-secret.yaml
+kubectl apply -f manifests/05-config-secrets/03-deployment-with-config.yaml</code></pre></div>
+
+        <h3 class="verify">Inspect &amp; decode</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get cm,secret -n demo
+kubectl describe cm k8s-demo-config -n demo
+kubectl get secret k8s-demo-secret -n demo -o yaml
+kubectl get secret k8s-demo-secret -n demo -o jsonpath='{.data.DB_PASSWORD}' | base64 -d ; echo</code></pre></div>
+
+        <h3 class="verify">See it inside the Pod</h3>
+        <div class="code-wrap"><pre><code class="language-bash">POD=$(kubectl get pods -n demo -l app=k8s-demo-cfg -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n demo $POD -- env | grep -E 'APP_|DB_'
+kubectl exec -n demo $POD -- cat /config/application.yaml
+
+kubectl port-forward -n demo svc/k8s-demo-cfg 8081:80
+# in another terminal:
+curl localhost:8081/info</code></pre></div>
+
+        <div class="callout warn">
+          Changing a ConfigMap consumed as an env var does <strong>not</strong> auto-restart pods.
+          Force it: <code>kubectl rollout restart deploy/k8s-demo-cfg -n demo</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 8 -->
+    <section class="step" id="step-8" data-step="8" data-tags="resources requests limits hpa autoscaling metrics-server cpu memory">
+      <div class="step-head">
+        <div class="step-num">8</div>
+        <h2 class="step-title">Resource requests/limits + HPA</h2>
+        <div class="step-tags"><span class="tag scale">autoscale</span></div>
+      </div>
+      <p class="step-sub">Scheduler reserves <em>requests</em>, kernel enforces <em>limits</em>. HPA scales by CPU/memory utilisation.</p>
+      <div class="step-body">
+        <h3>Install metrics-server</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+kubectl patch -n kube-system deploy metrics-server --type=json -p='[
+  {"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}
+]'
+
+kubectl rollout status -n kube-system deploy/metrics-server
+kubectl top nodes
+kubectl top pods -n demo</code></pre></div>
+
+        <h3>Apply Deployment + HPA</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/06-resources-hpa/01-deployment-resources.yaml
+kubectl apply -f manifests/06-resources-hpa/02-hpa.yaml
+
+kubectl get hpa -n demo
+kubectl describe hpa k8s-demo-hpa -n demo</code></pre></div>
+
+        <h3 class="verify">Generate load &amp; watch it scale</h3>
+        <div class="code-wrap"><pre><code class="language-bash"># Terminal 1: watch HPA + pods
+watch -n 2 'kubectl get hpa,pods -n demo -l app=k8s-demo-hpa'
+
+# Terminal 2: hammer the /cpu endpoint (3-second burn per call)
+kubectl run -n demo loadgen --rm -it --restart=Never --image=busybox -- \
+  sh -c 'while true; do wget -q -O- http://k8s-demo-hpa/cpu; done'</code></pre></div>
+
+        <div class="callout tip">
+          Within 1–2 min, replicas climb 1 → 5. Stop the loadgen and after ~5 min stabilization they drop back.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 9 -->
+    <section class="step" id="step-9" data-step="9" data-tags="rbac role rolebinding clusterrole clusterrolebinding serviceaccount auth can-i token api">
+      <div class="step-head">
+        <div class="step-num">9</div>
+        <h2 class="step-title">RBAC — SA, Role, RoleBinding, ClusterRole, ClusterRoleBinding</h2>
+        <div class="step-tags"><span class="tag sec">security</span></div>
+      </div>
+      <p class="step-sub">Identity (ServiceAccount) ➜ Permissions (Role/ClusterRole) ➜ Grant (Binding).</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/07-rbac/01-serviceaccount.yaml
+kubectl apply -f manifests/07-rbac/02-role-rolebinding.yaml
+kubectl apply -f manifests/07-rbac/03-clusterrole-clusterrolebinding.yaml
+kubectl apply -f manifests/07-rbac/04-deployment-with-sa.yaml</code></pre></div>
+
+        <h3 class="verify">Inspect</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get sa,role,rolebinding -n demo
+kubectl get clusterrole cluster-readonly
+kubectl get clusterrolebinding cluster-readonly-binding
+kubectl describe rolebinding demo-reader-binding -n demo</code></pre></div>
+
+        <h3 class="verify">Prove the permissions with <code>auth can-i</code></h3>
+        <div class="code-wrap"><pre><code class="language-bash"># YES (Role demo-reader):
+kubectl auth can-i list pods       -n demo --as=system:serviceaccount:demo:k8s-demo-sa
+kubectl auth can-i get  configmaps -n demo --as=system:serviceaccount:demo:k8s-demo-sa
+# NO (not granted):
+kubectl auth can-i create pods     -n demo --as=system:serviceaccount:demo:k8s-demo-sa
+kubectl auth can-i list pods       -n demo-prod --as=system:serviceaccount:demo:k8s-demo-sa
+# YES (ClusterRole cluster-readonly):
+kubectl auth can-i list nodes      --as=system:serviceaccount:demo:k8s-demo-sa
+kubectl auth can-i list namespaces --as=system:serviceaccount:demo:k8s-demo-sa</code></pre></div>
+
+        <h3 class="debug">Use the SA token from inside the Pod</h3>
+        <div class="code-wrap"><pre><code class="language-bash">POD=$(kubectl get pods -n demo -l app=k8s-demo-rbac -o jsonpath='{.items[0].metadata.name}')
+
+kubectl exec -n demo $POD -- sh -c '
+TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+CACERT=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+curl --cacert $CACERT -H "Authorization: Bearer $TOKEN" \
+  https://kubernetes.default.svc/api/v1/namespaces/demo/pods | head -40
+'</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 10 -->
+    <section class="step" id="step-10" data-step="10" data-tags="taint toleration affinity anti-affinity nodeselector schedule topology">
+      <div class="step-head">
+        <div class="step-num">10</div>
+        <h2 class="step-title">Taints, Tolerations &amp; Pod Affinity</h2>
+        <div class="step-tags"><span class="tag sched">scheduling</span></div>
+      </div>
+      <p class="step-sub">Control which Pod runs on which Node — and how they spread.</p>
+      <div class="step-body">
+        <h3>A. nodeSelector (hard pin to a label)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/08-taints-affinity/01-deployment-nodeselector.yaml
+kubectl get pods -n demo -l app=k8s-demo-frontend -o wide</code></pre></div>
+
+        <h3>B. Taint + Toleration (reserve a node)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl taint nodes k8s-learn-worker2 dedicated=backend:NoSchedule
+kubectl apply -f manifests/08-taints-affinity/02-taint-toleration.yaml
+
+kubectl get pods -n demo -l app=k8s-demo-backend -o wide
+kubectl describe node k8s-learn-worker2 | grep -A2 Taints
+
+# remove the taint later:
+kubectl taint nodes k8s-learn-worker2 dedicated=backend:NoSchedule-</code></pre></div>
+
+        <h3>C. Pod anti-affinity (HA spread)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/08-taints-affinity/03-pod-affinity.yaml
+kubectl get pods -n demo -l app=k8s-demo-spread -o wide</code></pre></div>
+
+        <div class="callout warn">
+          With 2 workers + 3 replicas + hard anti-affinity, the 3rd Pod stays
+          <code>Pending</code> — that's the trade-off of <code>requiredDuringScheduling</code>.
+          Switch to <code>preferred</code> for soft spreading.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 11 -->
+    <section class="step" id="step-11" data-step="11" data-tags="ingress nginx host path tls layer7 router controller">
+      <div class="step-head">
+        <div class="step-num">11</div>
+        <h2 class="step-title">Ingress (NGINX)</h2>
+        <div class="step-tags"><span class="tag net">net</span></div>
+      </div>
+      <p class="step-sub">HTTP(S) Layer-7 router in front of Services. Needs an Ingress controller.</p>
+      <div class="step-body">
+        <h3>Install ingress-nginx (kind flavour)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
+kubectl wait --namespace ingress-nginx \
+  --for=condition=ready pod \
+  --selector=app.kubernetes.io/component=controller \
+  --timeout=180s
+
+kubectl get pods,svc -n ingress-nginx</code></pre></div>
+
+        <h3>Apply the Ingress</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/09-ingress/01-ingress.yaml
+kubectl get ingress -n demo
+kubectl describe ingress k8s-demo-ingress -n demo</code></pre></div>
+
+        <h3 class="verify">Test from your laptop</h3>
+        <div class="code-wrap"><pre><code class="language-bash">curl -H "Host: demo.local" http://localhost/
+curl -H "Host: demo.local" http://localhost/cfg/info</code></pre></div>
+
+        <div class="callout">
+          Or add <code>127.0.0.1 demo.local</code> to <code>/etc/hosts</code> and just <code>curl http://demo.local/</code>.
+        </div>
+
+        <h3 class="debug">If 503 / 404</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get pods -n ingress-nginx
+kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller --tail=200
+kubectl describe ingress k8s-demo-ingress -n demo</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 12 -->
+    <section class="step" id="step-12" data-step="12" data-tags="rolling update recreate blue green canary strategy maxsurge maxunavailable rollout patch">
+      <div class="step-head">
+        <div class="step-num">12</div>
+        <h2 class="step-title">Deployment Strategies</h2>
+        <div class="step-tags"><span class="tag scale">delivery</span></div>
+      </div>
+      <p class="step-sub">RollingUpdate, Recreate, Blue/Green (svc selector flip), Canary (replica weight).</p>
+      <div class="step-body">
+        <h3>RollingUpdate (default)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/10-deployment-strategies/01-rolling-update.yaml
+kubectl rollout status deploy/k8s-demo-rolling -n demo
+
+kubectl set image deploy/k8s-demo-rolling java-app=k8s-demo:1.0.1 -n demo
+kubectl rollout status  deploy/k8s-demo-rolling -n demo
+kubectl rollout history deploy/k8s-demo-rolling -n demo
+
+kubectl rollout pause   deploy/k8s-demo-rolling -n demo
+kubectl rollout resume  deploy/k8s-demo-rolling -n demo
+kubectl rollout undo    deploy/k8s-demo-rolling -n demo</code></pre></div>
+
+        <h3>Recreate (downtime, simpler)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/10-deployment-strategies/02-recreate.yaml
+kubectl set image deploy/k8s-demo-recreate java-app=k8s-demo:1.0.1 -n demo
+kubectl get pods -n demo -l app=k8s-demo-recreate -w</code></pre></div>
+
+        <h3>Blue/Green (flip the Service selector)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/10-deployment-strategies/03-bluegreen.yaml
+
+# right now Service selects version=blue
+kubectl run -n demo tmp --rm -it --restart=Never --image=curlimages/curl -- \
+  sh -c 'for i in 1 2 3 4 5; do curl -s http://k8s-demo-bluegreen/ ; echo; done'
+
+# flip to green
+kubectl patch svc k8s-demo-bluegreen -n demo \
+  -p '{"spec":{"selector":{"app":"k8s-demo-bluegreen","version":"green"}}}'</code></pre></div>
+
+        <h3>Canary (replica-weighted)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/10-deployment-strategies/04-canary.yaml
+
+kubectl run -n demo tmp --rm -it --restart=Never --image=curlimages/curl -- \
+  sh -c 'for i in $(seq 1 20); do curl -s http://k8s-demo-canary/ ; echo; done'
+
+# Promote canary:
+kubectl scale deploy/k8s-demo-stable -n demo --replicas=0
+kubectl scale deploy/k8s-demo-canary -n demo --replicas=4</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 13: StatefulSet -->
+    <section class="step" id="step-13" data-step="13" data-tags="statefulset stable identity headless ordered pvc volumeclaimtemplate database mysql kafka">
+      <div class="step-head">
+        <div class="step-num">13</div>
+        <h2 class="step-title">StatefulSet — pods with identity</h2>
+        <div class="step-tags"><span class="tag sched">stateful</span></div>
+      </div>
+      <p class="step-sub">Stable names (web-0, web-1...), one PVC per replica, ordered rollout.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/11-statefulset/01-statefulset.yaml
+kubectl rollout status sts/k8s-demo-sts -n demo
+kubectl get sts,pods,pvc,svc -n demo -l app=k8s-demo-sts</code></pre></div>
+
+        <h3 class="verify">Stable names + per-pod DNS</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get pods -n demo -l app=k8s-demo-sts -o wide
+# k8s-demo-sts-0, k8s-demo-sts-1, k8s-demo-sts-2
+
+kubectl run -n demo dns-tmp --rm -it --restart=Never --image=busybox:1.36 -- \
+  sh -c 'for i in 0 1 2; do nslookup k8s-demo-sts-$i.k8s-demo-sts.demo.svc.cluster.local; done'</code></pre></div>
+
+        <h3 class="verify">Per-pod volume survives a delete</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl exec -n demo k8s-demo-sts-0 -- sh -c 'echo "marker $(date)" > /var/data/marker.txt'
+kubectl delete pod -n demo k8s-demo-sts-0
+kubectl wait --for=condition=Ready pod/k8s-demo-sts-0 -n demo --timeout=60s
+kubectl exec -n demo k8s-demo-sts-0 -- cat /var/data/marker.txt   # still there!</code></pre></div>
+
+        <div class="callout">
+          Use StatefulSet whenever pod identity matters — DBs, queues,
+          consensus systems (etcd, Zookeeper, Kafka).
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 14: DaemonSet -->
+    <section class="step" id="step-14" data-step="14" data-tags="daemonset node-level agent log collector fluentbit metrics calico kindnet kube-proxy">
+      <div class="step-head">
+        <div class="step-num">14</div>
+        <h2 class="step-title">DaemonSet — one Pod per Node</h2>
+        <div class="step-tags"><span class="tag sched">node</span></div>
+      </div>
+      <p class="step-sub">For log collectors, metrics agents, CNI, kube-proxy — anything that must run on every node.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/12-daemonset/01-daemonset.yaml
+
+kubectl get ds -n demo
+kubectl get pods -n demo -l app=node-info-agent -o wide   # one pod per worker</code></pre></div>
+
+        <h3 class="verify">Watch every agent's heartbeat</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl logs -f -n demo -l app=node-info-agent --max-log-requests=10 --prefix=true</code></pre></div>
+
+        <div class="callout">
+          Control-plane nodes are excluded by their <code>NoSchedule</code> taint. To run there too,
+          uncomment the <code>tolerations:</code> block in the manifest and re-apply.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 15: Job & CronJob -->
+    <section class="step" id="step-15" data-step="15" data-tags="job cronjob batch run-to-completion schedule cron parallelism completions backoff">
+      <div class="step-head">
+        <div class="step-num">15</div>
+        <h2 class="step-title">Job &amp; CronJob</h2>
+        <div class="step-tags"><span class="tag">batch</span></div>
+      </div>
+      <p class="step-sub">Run-to-completion (Job) and on a schedule (CronJob).</p>
+      <div class="step-body">
+        <h3>Job — 3 completions, parallelism 2</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/13-jobs/01-job.yaml
+kubectl get job,pods -n demo -l app=data-migration
+kubectl logs -n demo -l app=data-migration --tail=50
+kubectl wait --for=condition=complete -n demo job/data-migration --timeout=120s</code></pre></div>
+
+        <h3>CronJob — every 2 minutes</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/13-jobs/02-cronjob.yaml
+kubectl get cronjob,jobs -n demo --sort-by=.metadata.creationTimestamp
+
+# trigger one immediately:
+kubectl create job --from=cronjob/hello-cron hello-once -n demo
+kubectl logs -n demo -l job-name=hello-once</code></pre></div>
+
+        <div class="callout">
+          <code>concurrencyPolicy: Forbid</code> skips a tick if the previous run hasn't finished.
+          <code>ttlSecondsAfterFinished</code> auto-deletes finished jobs.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 16: Storage -->
+    <section class="step" id="step-16" data-step="16" data-tags="pv pvc storageclass persistentvolume persistentvolumeclaim storage volume rwo rwx">
+      <div class="step-head">
+        <div class="step-num">16</div>
+        <h2 class="step-title">Storage — PV, PVC, StorageClass</h2>
+        <div class="step-tags"><span class="tag">storage</span></div>
+      </div>
+      <p class="step-sub">Disks that survive Pod restarts. kind ships a 'standard' class that just works.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl get storageclass
+kubectl apply -f manifests/14-storage/02-pvc.yaml
+kubectl apply -f manifests/14-storage/03-deployment-with-pvc.yaml
+
+kubectl get pvc,pv -n demo
+kubectl get pods -n demo -l app=k8s-demo-storage -o wide</code></pre></div>
+
+        <h3 class="verify">Data survives a pod kill</h3>
+        <div class="code-wrap"><pre><code class="language-bash">POD=$(kubectl get pods -n demo -l app=k8s-demo-storage -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n demo $POD -- sh -c 'echo "saved $(date)" > /var/data/it-survived.txt'
+
+kubectl delete pod $POD -n demo
+kubectl wait --for=condition=Ready -l app=k8s-demo-storage pod -n demo --timeout=60s
+
+POD=$(kubectl get pods -n demo -l app=k8s-demo-storage -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n demo $POD -- cat /var/data/it-survived.txt</code></pre></div>
+
+        <div class="callout warn">
+          kind uses <code>WaitForFirstConsumer</code> — PVC stays Pending until a Pod actually mounts it.
+          That's why a "stuck Pending" PVC suddenly becomes Bound when you apply the Deployment.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 17: Init Containers -->
+    <section class="step" id="step-17" data-step="17" data-tags="init container preflight migration setup wait dependency download permissions">
+      <div class="step-head">
+        <div class="step-num">17</div>
+        <h2 class="step-title">Init Containers</h2>
+      </div>
+      <p class="step-sub">Run-then-exit containers that prepare the pod before the main app starts.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/15-init-containers/01-init-pod.yaml
+kubectl get pod java-pod-init -n demo -w
+# STATUS goes: Init:0/2 -> Init:1/2 -> Init:2/2 -> PodInitializing -> Running</code></pre></div>
+
+        <h3 class="verify">Inspect each init phase separately</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl logs java-pod-init -n demo -c wait-for-service
+kubectl logs java-pod-init -n demo -c prepare-data
+kubectl exec  java-pod-init -n demo -- cat /work/seed.txt</code></pre></div>
+
+        <div class="callout">
+          Init = "do then exit". Sidecar = "stay alongside". Use init for DB migrations,
+          dependency-waits, generating config files, fixing volume permissions.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 18: NetworkPolicy -->
+    <section class="step" id="step-18" data-step="18" data-tags="networkpolicy zero-trust calico cilium ingress egress firewall pod isolation deny allow">
+      <div class="step-head">
+        <div class="step-num">18</div>
+        <h2 class="step-title">NetworkPolicy — pod-level firewall</h2>
+        <div class="step-tags"><span class="tag sec">netpol</span></div>
+      </div>
+      <p class="step-sub">Default-deny + selective allow. Requires a CNI that enforces it (Calico / Cilium).</p>
+      <div class="step-body">
+        <div class="callout warn">
+          kind's default kindnet does NOT enforce NetworkPolicy. Install Calico first
+          or your policies are decorative.
+        </div>
+
+        <h3>Install Calico, then apply policies</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+kubectl wait --for=condition=Ready -n kube-system pods -l k8s-app=calico-node --timeout=180s
+kubectl rollout restart deploy -n demo
+
+kubectl apply -f manifests/16-network-policy/01-default-deny.yaml
+kubectl apply -f manifests/16-network-policy/02-allow-from-frontend.yaml
+kubectl get networkpolicy -n demo</code></pre></div>
+
+        <h3 class="verify">Prove allow vs deny</h3>
+        <div class="code-wrap"><pre><code class="language-bash"># DENIED — no role=frontend label
+kubectl run -n demo deny-tmp --rm -it --restart=Never --image=curlimages/curl -- \
+  curl -sS --max-time 4 http://k8s-demo/info ; echo "exit=$?"
+
+# ALLOWED — role=frontend matches the policy
+kubectl run -n demo allow-tmp --rm -it --restart=Never \
+  --labels='role=frontend' --image=curlimages/curl -- \
+  curl -sS --max-time 4 http://k8s-demo/info</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 19: PDB -->
+    <section class="step" id="step-19" data-step="19" data-tags="pdb poddisruptionbudget drain voluntary disruption maintenance availability minavailable">
+      <div class="step-head">
+        <div class="step-num">19</div>
+        <h2 class="step-title">PodDisruptionBudget</h2>
+        <div class="step-tags"><span class="tag scale">availability</span></div>
+      </div>
+      <p class="step-sub">Stops <code>kubectl drain</code> / autoscaler from killing too many of your pods at once.</p>
+      <div class="step-body">
+        <h3>Apply</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl apply -f manifests/17-pdb/01-pdb.yaml
+kubectl get pdb -n demo
+kubectl describe pdb k8s-demo-pdb -n demo</code></pre></div>
+
+        <h3 class="verify">Drain a node and watch PDB block it</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl scale deploy/k8s-demo -n demo --replicas=3
+
+NODE=$(kubectl get pods -n demo -l app=k8s-demo -o jsonpath='{.items[0].spec.nodeName}')
+kubectl drain $NODE --ignore-daemonsets --delete-emptydir-data
+kubectl uncordon $NODE</code></pre></div>
+
+        <div class="callout">
+          PDB protects only against <strong>voluntary</strong> disruptions. For node failures
+          and OOM, you need replicas + spread + readiness probes.
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 20: Cleanup -->
+    <section class="step" id="step-20" data-step="20" data-tags="cleanup delete namespace cluster kind teardown">
+      <div class="step-head">
+        <div class="step-num">20</div>
+        <h2 class="step-title">Cleanup</h2>
+      </div>
+      <div class="step-body">
+        <h3>Drop the namespace (deletes everything in it)</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kubectl delete ns demo demo-prod</code></pre></div>
+        <h3>…or nuke the whole cluster</h3>
+        <div class="code-wrap"><pre><code class="language-bash">kind delete cluster --name k8s-learn</code></pre></div>
+      </div>
+    </section>
+
+    <!-- Step 21: What's next -->
+    <section class="step" id="step-21" data-step="21" data-tags="next operators csi service mesh helm kustomize argo opa kyverno gitops">
+      <div class="step-head">
+        <div class="step-num">21</div>
+        <h2 class="step-title">What to read next</h2>
+      </div>
+      <div class="step-body">
+        <ul>
+          <li><strong>CSI drivers</strong> &amp; cloud volumes — EBS, GCE PD, Azure Disk.</li>
+          <li><strong>Operators / CRDs</strong> — extend k8s with your own kinds.</li>
+          <li><strong>Service Mesh</strong> (Istio, Linkerd) — mTLS, traffic shifting, observability.</li>
+          <li><strong>Helm / Kustomize</strong> — template &amp; overlay your manifests.</li>
+          <li><strong>Argo Rollouts / Flagger</strong> — progressive delivery driven by metrics.</li>
+          <li><strong>OPA / Kyverno</strong> — policy-as-code admission control.</li>
+          <li><strong>GitOps</strong> (ArgoCD, Flux) — Git as the source of truth.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============ CONCEPTS DIAGRAM ============ -->
+    <div class="diagram" id="concepts">
+      <h2>How the objects connect</h2>
+      <div class="mermaid">
+flowchart LR
+    subgraph workload["Workload"]
+        D["Deployment"] --> RS["ReplicaSet"] --> P["Pod"]
+    end
+    subgraph net["Networking"]
+        ING["Ingress (host/path)"] --> SVC["Service (selector)"] --> EP["Endpoints (pod IPs)"]
+    end
+    subgraph cfg["Config"]
+        CM["ConfigMap"] -.-> P
+        SEC["Secret"] -.-> P
+    end
+    subgraph sec["RBAC"]
+        SA["ServiceAccount"] --> RB["RoleBinding / ClusterRoleBinding"] --> R["Role / ClusterRole"] --> API["API verbs<br/>(get/list/create/...)"]
+        SA -.-> P
+    end
+    subgraph sched["Scheduling"]
+        NS_["nodeSelector"] -.-> P
+        AFF["affinity / anti-affinity"] -.-> P
+        TOL["tolerations"] -.-> P
+        NODE["Node (labels + taints)"]
+    end
+    EP --> P
+    classDef k8s fill:#131c3a,stroke:#326CE5,color:#e5e9f5
+    class D,RS,P,ING,SVC,EP,CM,SEC,SA,RB,R,API,NS_,AFF,TOL,NODE k8s
+      </div>
+    </div>
+
+    <!-- ============ CHEATSHEET ============ -->
+    <details class="cheatsheet" id="cheatsheet" open>
+      <summary>kubectl Cheatsheet — every debugging command grouped by topic</summary>
+      <div class="cheat-body">
+        <p style="color:var(--text-dim);margin:0 0 16px">
+          Set up once: <code>alias k=kubectl</code> and <code>kubectl config set-context --current --namespace=demo</code>.
+        </p>
+        <div class="cheat-grid">
+
+          <div class="cheat-card">
+            <h4>Get / Describe / Yaml</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl get pod,svc,deploy,rs,cm,secret,ingress,hpa -n demo
+kubectl get pods -n demo -o wide
+kubectl get pods -n demo -l app=k8s-demo
+kubectl describe pod &lt;pod&gt; -n demo
+kubectl get pod &lt;pod&gt; -n demo -o yaml
+kubectl get pod &lt;pod&gt; -n demo -o jsonpath='{.status.podIP}'</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Logs</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl logs -f &lt;pod&gt; -n demo
+kubectl logs --tail=100 &lt;pod&gt; -n demo
+kubectl logs --since=10m &lt;pod&gt; -n demo
+kubectl logs -p &lt;pod&gt; -n demo        # PREVIOUS container after crash
+kubectl logs -l app=k8s-demo -n demo --max-log-requests=10
+kubectl logs &lt;pod&gt; -n demo -c &lt;container&gt;</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Exec / Shell</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl exec -it &lt;pod&gt; -n demo -- sh
+kubectl exec -it &lt;pod&gt; -n demo -c &lt;container&gt; -- sh
+kubectl exec &lt;pod&gt; -n demo -- env
+kubectl debug -it &lt;pod&gt; -n demo --image=busybox --target=&lt;container&gt;</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Port-forward</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl port-forward -n demo svc/k8s-demo 8080:80
+kubectl port-forward -n demo pod/&lt;pod&gt; 9000:8080
+# then curl http://localhost:8080/</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Apply / Edit / Delete</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl apply  -f file.yaml
+kubectl apply  -R -f manifests/
+kubectl diff   -f file.yaml
+kubectl edit   deploy/k8s-demo -n demo
+kubectl delete -f file.yaml
+kubectl delete pod &lt;pod&gt; -n demo --grace-period=0 --force</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Scale / Rollout</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl scale deploy/k8s-demo -n demo --replicas=5
+kubectl rollout status   deploy/k8s-demo -n demo
+kubectl rollout history  deploy/k8s-demo -n demo
+kubectl rollout undo     deploy/k8s-demo -n demo
+kubectl rollout restart  deploy/k8s-demo -n demo
+kubectl set image        deploy/k8s-demo java-app=k8s-demo:1.0.1 -n demo</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Events (almost always the answer)</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl get events -n demo --sort-by=.lastTimestamp
+kubectl get events -n demo --field-selector type=Warning
+kubectl describe pod &lt;pod&gt; -n demo | tail -20</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>RBAC debug</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl auth can-i list pods -n demo
+kubectl auth can-i --list -n demo
+kubectl auth can-i list pods --as=system:serviceaccount:demo:k8s-demo-sa -n demo</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>Network debug</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kubectl get svc,endpoints -n demo
+kubectl run -n demo tmp --rm -it --restart=Never --image=busybox -- \
+  nslookup k8s-demo.demo.svc.cluster.local
+kubectl run -n demo tmp --rm -it --restart=Never --image=curlimages/curl -- \
+  curl -v http://k8s-demo/</code></pre></div>
+          </div>
+
+          <div class="cheat-card">
+            <h4>kind specifics</h4>
+            <div class="code-wrap"><pre><code class="language-bash">kind get clusters
+docker exec -it k8s-learn-worker bash
+crictl ps; crictl images
+kind load docker-image k8s-demo:1.0.0 --name k8s-learn
+kubectl rollout restart deploy/k8s-demo -n demo</code></pre></div>
+          </div>
+
+        </div>
+      </div>
+    </details>
+
+    <div class="empty" id="emptyState">
+      <h3 style="margin:0 0 6px">No matches</h3>
+      <p>Clear the search to see all 14 steps again.</p>
+    </div>
+
+    <footer class="endnote">
+      Built locally · everything saved in your browser · <a href="README.md">README.md</a> · <a href="docs/CHEATSHEET.md">CHEATSHEET.md</a>
+    </footer>
+
+  </main>
+</div>
+
+<div id="toast">Copied to clipboard</div>
+<button class="top-jump" id="topJump" title="Back to top">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+</button>
+
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/languages/bash.min.js"></script>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  window.__mermaid = mermaid;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: isDark ? 'dark' : 'default',
+    themeVariables: {
+      primaryColor: '#1c2f5b',
+      primaryBorderColor: '#326CE5',
+      primaryTextColor: '#e5e9f5',
+      lineColor: '#5777b8',
+      tertiaryColor: '#0f172a',
+      background: 'transparent',
+      mainBkg: '#1c2f5b',
+      clusterBkg: '#131c3a',
+      clusterBorder: '#1f2b52',
+      edgeLabelBackground: '#131c3a',
+      fontFamily: 'inherit'
+    },
+    flowchart: { curve: 'basis', padding: 16 },
+    securityLevel: 'loose'
+  });
+</script>
+<script>
+  /* ============ Syntax highlight ============ */
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('pre code').forEach(el => {
+      try { hljs.highlightElement(el); } catch(e) {}
+    });
+  });
+
+  /* ============ Copy buttons on every code block ============ */
+  document.querySelectorAll('.code-wrap').forEach(wrap => {
+    const btn = document.createElement('button');
+    btn.className = 'copy-btn';
+    btn.type = 'button';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      const code = wrap.querySelector('code')?.innerText ?? '';
+      try {
+        await navigator.clipboard.writeText(code);
+      } catch {
+        const t = document.createElement('textarea');
+        t.value = code; document.body.appendChild(t); t.select();
+        document.execCommand('copy'); document.body.removeChild(t);
+      }
+      btn.textContent = 'Copied ✓';
+      btn.classList.add('copied');
+      showToast('Copied to clipboard');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1400);
+    });
+    wrap.appendChild(btn);
+  });
+
+  /* ============ Toast ============ */
+  const toast = document.getElementById('toast');
+  let toastT;
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    clearTimeout(toastT);
+    toastT = setTimeout(() => toast.classList.remove('show'), 1800);
+  }
+
+  /* ============ Progress (localStorage) ============ */
+  const STORAGE_KEY = 'k8s-lab.progress.v1';
+  const THEME_KEY   = 'k8s-lab.theme.v1';
+  const TOTAL = 21;
+  function loadDone() {
+    try { return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').map(Number)); }
+    catch { return new Set(); }
+  }
+  function saveDone(set) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
+  }
+  function syncProgress() {
+    const done = loadDone();
+    document.querySelectorAll('section.step').forEach(sec => {
+      const n = Number(sec.dataset.step);
+      sec.classList.toggle('done', done.has(n));
+      const btn = sec.querySelector('.mark-done');
+      if (btn) {
+        btn.classList.toggle('done', done.has(n));
+        btn.innerHTML = done.has(n)
+          ? '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Completed'
+          : '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>Mark this step complete';
+      }
+    });
+    document.querySelectorAll('nav.sidebar a.toc[data-step]').forEach(a => {
+      const n = Number(a.dataset.step);
+      a.classList.toggle('done', done.has(n));
+    });
+    // Count only steps 1..12 (real lab steps) + show as X/14 total entries
+    const count = done.size;
+    const pct = Math.round((count / TOTAL) * 100);
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressPct').textContent = pct + '%';
+    document.getElementById('progressPill').textContent = `${count}/${TOTAL}`;
+  }
+  document.querySelectorAll('section.step[data-step]').forEach(sec => {
+    const btn = document.createElement('button');
+    btn.className = 'mark-done';
+    btn.type = 'button';
+    btn.addEventListener('click', () => {
+      const n = Number(sec.dataset.step);
+      const done = loadDone();
+      if (done.has(n)) done.delete(n); else done.add(n);
+      saveDone(done);
+      syncProgress();
+      if (done.has(n)) showToast('Step ' + n + ' marked complete');
+    });
+    sec.querySelector('.step-body')?.appendChild(btn);
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!confirm('Reset all progress?')) return;
+    localStorage.removeItem(STORAGE_KEY);
+    syncProgress();
+    showToast('Progress reset');
+  });
+  syncProgress();
+
+  /* ============ Theme toggle ============ */
+  const themeBtn = document.getElementById('themeToggle');
+  const themeIcon = document.getElementById('themeIcon');
+  const sunPath = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+  const moonPath = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    themeIcon.innerHTML = t === 'dark' ? moonPath : sunPath;
+    localStorage.setItem(THEME_KEY, t);
+    if (window.__mermaid) {
+      window.__mermaid.initialize({
+        startOnLoad: false,
+        theme: t === 'dark' ? 'dark' : 'default',
+        themeVariables: t === 'dark'
+          ? { primaryColor:'#1c2f5b', primaryBorderColor:'#326CE5', primaryTextColor:'#e5e9f5', lineColor:'#5777b8', mainBkg:'#1c2f5b', clusterBkg:'#131c3a', clusterBorder:'#1f2b52', edgeLabelBackground:'#131c3a' }
+          : { primaryColor:'#e2ecff', primaryBorderColor:'#326CE5', primaryTextColor:'#0e1525', lineColor:'#326CE5', mainBkg:'#e2ecff', clusterBkg:'#f5f7fb', clusterBorder:'#e3e7f1', edgeLabelBackground:'#ffffff' },
+        flowchart: { curve: 'basis', padding: 16 },
+        securityLevel: 'loose'
+      });
+      document.querySelectorAll('.mermaid').forEach(el => {
+        if (el.dataset.original) el.innerHTML = el.dataset.original;
+        else el.dataset.original = el.innerHTML;
+        el.removeAttribute('data-processed');
+      });
+      window.__mermaid.run();
+    }
+  }
+  const savedTheme = localStorage.getItem(THEME_KEY) || 'dark';
+  applyTheme(savedTheme);
+  themeBtn.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+
+  /* ============ Search filter ============ */
+  const searchInput = document.getElementById('searchInput');
+  const emptyState  = document.getElementById('emptyState');
+  searchInput.addEventListener('input', () => {
+    const q = searchInput.value.trim().toLowerCase();
+    let visible = 0;
+    document.querySelectorAll('section.step').forEach(sec => {
+      const blob = (sec.dataset.tags + ' ' + sec.textContent).toLowerCase();
+      const match = !q || blob.includes(q);
+      sec.classList.toggle('hidden', !match);
+      if (match) visible++;
+    });
+    // Hide diagrams when filtering
+    document.querySelectorAll('.diagram, .hero, details.cheatsheet').forEach(el => {
+      el.style.display = q ? 'none' : '';
+    });
+    emptyState.classList.toggle('show', q && visible === 0);
+  });
+  // "/" focuses search
+  document.addEventListener('keydown', e => {
+    if (e.key === '/' && document.activeElement !== searchInput) {
+      e.preventDefault(); searchInput.focus();
+    }
+    if (e.key === 'Escape' && document.activeElement === searchInput) {
+      searchInput.value = ''; searchInput.dispatchEvent(new Event('input')); searchInput.blur();
+    }
+  });
+
+  /* ============ Scroll spy (active TOC link) ============ */
+  const tocLinks = [...document.querySelectorAll('nav.sidebar a.toc')];
+  const idToLink = Object.fromEntries(tocLinks.map(a => [a.getAttribute('href').slice(1), a]));
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        tocLinks.forEach(a => a.classList.remove('active'));
+        const link = idToLink[en.target.id];
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  document.querySelectorAll('section.step, .diagram, .hero, details.cheatsheet').forEach(s => observer.observe(s));
+
+  /* ============ Back-to-top ============ */
+  const topJump = document.getElementById('topJump');
+  window.addEventListener('scroll', () => {
+    topJump.classList.toggle('show', window.scrollY > 600);
+  });
+  topJump.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  /* ============ Smooth-scroll TOC clicks ============ */
+  document.querySelectorAll('nav.sidebar a.toc').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href').slice(1);
+      const el = document.getElementById(id);
+      if (el) {
+        e.preventDefault();
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+</body>
+</html>

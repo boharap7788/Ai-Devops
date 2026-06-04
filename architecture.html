@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kubernetes Architecture and Flow</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+  :root {
+    --bg:        #0b1020;
+    --bg-2:      #0f172a;
+    --bg-3:      #111a35;
+    --panel:     #131c3a;
+    --panel-2:   #1a2547;
+    --border:    #1f2b52;
+    --text:      #e5e9f5;
+    --text-dim:  #95a0c2;
+    --text-dim2: #6b7799;
+    --shadow:    0 10px 30px rgba(0,0,0,.35);
+    --radius:    14px;
+
+    --c-user:    #22d3ee;
+    --c-kubectl: #38bdf8;
+    --c-api:     #f59e0b;
+    --c-etcd:    #10b981;
+    --c-sched:   #a855f7;
+    --c-cm:      #ec4899;
+    --c-kubelet: #eab308;
+    --c-proxy:   #14b8a6;
+    --c-cri:     #ef4444;
+    --c-cni:     #06b6d4;
+    --c-dns:     #6366f1;
+  }
+  html[data-theme="light"] {
+    --bg:        #f5f7fb;
+    --bg-2:      #ffffff;
+    --bg-3:      #f0f3fa;
+    --panel:     #ffffff;
+    --panel-2:   #f5f7fb;
+    --border:    #e3e7f1;
+    --text:      #0e1525;
+    --text-dim:  #4a5575;
+    --text-dim2: #7a849f;
+    --shadow:    0 8px 24px rgba(15,30,80,.08);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(50,108,229,.15), transparent 60%),
+      radial-gradient(1000px 500px at -10% 50%, rgba(168,85,247,.1), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  ::selection { background: var(--c-api); color: black; }
+
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(11,16,32,.85);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+  html[data-theme="light"] header.topbar { background: rgba(255,255,255,.85); }
+  .topbar-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    max-width: 1400px; margin: 0 auto;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+  .brand-logo {
+    width: 36px; height: 36px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--c-api), var(--c-cm));
+    display: grid; place-items: center;
+    color: white; font-weight: 800;
+    box-shadow: 0 4px 14px rgba(245,158,11,.4);
+  }
+  .brand small { display: block; color: var(--text-dim); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; font-weight: 500; }
+  nav.topnav { display: flex; gap: 6px; }
+  nav.topnav a {
+    padding: 7px 12px; border-radius: 8px;
+    color: var(--text-dim);
+    text-decoration: none; font-size: 13px; font-weight: 600;
+    transition: background .15s, color .15s;
+  }
+  nav.topnav a:hover { background: var(--panel); color: var(--text); }
+  .iconbtn {
+    width: 36px; height: 36px;
+    display: grid; place-items: center;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--panel); color: var(--text);
+    cursor: pointer;
+  }
+  .iconbtn:hover { background: var(--panel-2); }
+
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+    margin-bottom: 28px;
+    position: relative; overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .hero::before {
+    content: ""; position: absolute; right: -150px; top: -100px;
+    width: 420px; height: 420px;
+    background: radial-gradient(circle, rgba(245,158,11,.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero h1 { margin: 0 0 12px; font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+  .hero .accent { background: linear-gradient(90deg, var(--c-api), var(--c-cm)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero p { margin: 0 0 14px; color: var(--text-dim); max-width: 760px; font-size: 16px; }
+  .hero kbd {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font: 600 12.5px ui-monospace, Menlo, monospace;
+    color: var(--c-api);
+  }
+
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    margin-bottom: 24px;
+    scroll-margin-top: 80px;
+    box-shadow: var(--shadow);
+  }
+  .section h2 {
+    margin: 0 0 6px;
+    font-size: 22px; font-weight: 700; letter-spacing: -.01em;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section h2::before {
+    content: ""; width: 5px; height: 26px;
+    background: linear-gradient(180deg, var(--c-api), var(--c-cm));
+    border-radius: 3px;
+  }
+  .section p.lead { color: var(--text-dim); margin: 0 0 22px; max-width: 800px; }
+
+  .legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .legend-dot {
+    width: 14px; height: 14px; border-radius: 4px;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.05) inset;
+  }
+  .legend-name { font-weight: 700; font-size: 13px; }
+  .legend-where { font-size: 11px; color: var(--text-dim2); }
+
+  .arch-grid {
+    background: var(--bg-3);
+    border-radius: var(--radius);
+    padding: 24px;
+    border: 1px dashed var(--border);
+    overflow-x: auto;
+  }
+  .control-plane, .worker {
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .control-plane {
+    background: linear-gradient(180deg, rgba(245,158,11,.08), rgba(245,158,11,.02));
+    border: 1px solid rgba(245,158,11,.3);
+  }
+  .worker {
+    background: linear-gradient(180deg, rgba(234,179,8,.06), rgba(234,179,8,.02));
+    border: 1px solid rgba(234,179,8,.3);
+    margin-bottom: 12px;
+  }
+  .group-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .12em;
+    font-weight: 700;
+    margin: 0 0 14px; color: var(--text-dim);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .group-title::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c-api);
+  }
+  .worker .group-title::before { background: var(--c-kubelet); }
+  .components-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .comp {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 10px;
+    padding: 14px;
+    transition: transform .15s, box-shadow .15s;
+  }
+  .comp:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .comp h4 { margin: 0 0 4px; font-size: 14px; }
+  .comp .role { font-size: 12px; color: var(--text-dim); }
+  .comp.api      { border-left-color: var(--c-api); }
+  .comp.etcd     { border-left-color: var(--c-etcd); }
+  .comp.sched    { border-left-color: var(--c-sched); }
+  .comp.cm       { border-left-color: var(--c-cm); }
+  .comp.kubelet  { border-left-color: var(--c-kubelet); }
+  .comp.proxy    { border-left-color: var(--c-proxy); }
+  .comp.cri      { border-left-color: var(--c-cri); }
+  .comp.cni      { border-left-color: var(--c-cni); }
+  .comp.dns      { border-left-color: var(--c-dns); }
+  .comp.user     { border-left-color: var(--c-user); }
+  .comp.kubectl  { border-left-color: var(--c-kubectl); }
+
+  .timeline {
+    position: relative;
+    padding-left: 38px;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute; left: 14px; top: 6px; bottom: 6px;
+    width: 2px;
+    background: linear-gradient(180deg, var(--c-kubectl), var(--c-api), var(--c-etcd), var(--c-cm), var(--c-sched), var(--c-kubelet), var(--c-cri));
+    border-radius: 2px;
+  }
+  .step {
+    position: relative;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-left-width: 4px;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 14px;
+  }
+  .step .num {
+    position: absolute;
+    left: -38px; top: 14px;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: var(--bg-2);
+    border: 2px solid;
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 13px;
+    color: var(--text);
+  }
+  .step h3 { margin: 0 0 4px; font-size: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .step .who {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 999px;
+    letter-spacing: .04em; text-transform: uppercase;
+    background: var(--bg-2);
+  }
+  .step p { margin: 4px 0; color: var(--text-dim); font-size: 14px; }
+  .step ul { margin: 6px 0 4px 18px; padding: 0; color: var(--text-dim); font-size: 13.5px; }
+  .step ul li { margin: 3px 0; }
+  .step code { background: var(--bg-2); padding: 1px 6px; border-radius: 4px; font-size: 12.5px; color: var(--c-api); }
+
+  .step.kubectl  { border-left-color: var(--c-kubectl); }
+  .step.kubectl  .num { border-color: var(--c-kubectl); color: var(--c-kubectl); }
+  .step.kubectl  .who { color: var(--c-kubectl); }
+  .step.api      { border-left-color: var(--c-api); }
+  .step.api      .num { border-color: var(--c-api); color: var(--c-api); }
+  .step.api      .who { color: var(--c-api); }
+  .step.etcd     { border-left-color: var(--c-etcd); }
+  .step.etcd     .num { border-color: var(--c-etcd); color: var(--c-etcd); }
+  .step.etcd     .who { color: var(--c-etcd); }
+  .step.cm       { border-left-color: var(--c-cm); }
+  .step.cm       .num { border-color: var(--c-cm); color: var(--c-cm); }
+  .step.cm       .who { color: var(--c-cm); }
+  .step.sched    { border-left-color: var(--c-sched); }
+  .step.sched    .num { border-color: var(--c-sched); color: var(--c-sched); }
+  .step.sched    .who { color: var(--c-sched); }
+  .step.kubelet  { border-left-color: var(--c-kubelet); }
+  .step.kubelet  .num { border-color: var(--c-kubelet); color: var(--c-kubelet); }
+  .step.kubelet  .who { color: var(--c-kubelet); }
+  .step.cri      { border-left-color: var(--c-cri); }
+  .step.cri      .num { border-color: var(--c-cri); color: var(--c-cri); }
+  .step.cri      .who { color: var(--c-cri); }
+  .step.proxy    { border-left-color: var(--c-proxy); }
+  .step.proxy    .num { border-color: var(--c-proxy); color: var(--c-proxy); }
+  .step.proxy    .who { color: var(--c-proxy); }
+
+  .mermaid { background: transparent; text-align: center; }
+
+  .comp-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .comp-card {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-top: 4px solid;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .comp-card h4 {
+    margin: 0 0 4px; font-size: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .comp-card .where {
+    font-size: 11px; color: var(--text-dim2);
+    text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .comp-card p { margin: 6px 0; font-size: 13.5px; color: var(--text-dim); }
+  .comp-card ul { margin: 4px 0 0 18px; padding: 0; font-size: 13px; color: var(--text-dim); }
+
+  .key-takeaways {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .takeaway {
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+  }
+  .takeaway .badge {
+    display: inline-block;
+    font-size: 10.5px; font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--c-api); color: black;
+    letter-spacing: .04em; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .takeaway h4 { margin: 4px 0 6px; font-size: 15px; }
+  .takeaway p { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+
+  footer.endnote {
+    text-align: center;
+    color: var(--text-dim2);
+    font-size: 13px;
+    padding: 30px 16px 20px;
+  }
+  footer a { color: var(--c-api); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-dim2); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-logo">K8s</div>
+      <div>
+        Kubernetes Architecture and Flow
+        <small>How a kubectl apply actually works</small>
+      </div>
+    </div>
+    <nav class="topnav">
+      <a href="#legend">Legend</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#flow">12-step flow</a>
+      <a href="#sequence">Sequence</a>
+      <a href="#components">Components</a>
+      <a href="#takeaways">Takeaways</a>
+      <a href="applications/catalog.html">App catalog</a>
+      <a href="dashboard.html">Lab dashboard</a>
+    </nav>
+    <button class="iconbtn" id="themeToggle" title="Toggle theme">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="themeIcon">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <h1>What happens when you run<br><span class="accent">kubectl apply -f deployment.yaml</span> ?</h1>
+    <p>
+      Kubernetes is a system of <strong>independent controllers</strong> that all watch
+      the API server. There is no central brain — no component "tells" another what to do.
+      Each one observes shared state in <kbd>etcd</kbd>, compares it to what it wants, and acts.
+      This page traces a single <kbd>kubectl apply</kbd> through every component it touches.
+    </p>
+  </section>
+
+  <section class="section" id="legend">
+    <h2>Color legend</h2>
+    <p class="lead">Every component has a colour. Each step card and arrow uses the colour of whoever is doing the work.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-user)"></span><div><div class="legend-name">User</div><div class="legend-where">human</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-kubectl)"></span><div><div class="legend-name">kubectl</div><div class="legend-where">your laptop</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-api)"></span><div><div class="legend-name">API server</div><div class="legend-where">control plane</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-etcd)"></span><div><div class="legend-name">etcd</div><div class="legend-where">control plane</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-cm)"></span><div><div class="legend-name">Controller-manager</div><div class="legend-where">control plane</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-sched)"></span><div><div class="legend-name">Scheduler</div><div class="legend-where">control plane</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-kubelet)"></span><div><div class="legend-name">kubelet</div><div class="legend-where">every node</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-proxy)"></span><div><div class="legend-name">kube-proxy</div><div class="legend-where">every node</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-cri)"></span><div><div class="legend-name">Container Runtime</div><div class="legend-where">every node</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-cni)"></span><div><div class="legend-name">CNI plugin</div><div class="legend-where">every node</div></div></div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--c-dns)"></span><div><div class="legend-name">CoreDNS</div><div class="legend-where">cluster add-on</div></div></div>
+    </div>
+  </section>
+
+  <section class="section" id="architecture">
+    <h2>The big picture</h2>
+    <p class="lead">
+      A Kubernetes cluster has two halves. The <strong>control plane</strong> stores
+      desired state and runs controllers. <strong>Worker nodes</strong> run your
+      pods and report back. Communication goes through the API server.
+    </p>
+
+    <div class="arch-grid">
+
+      <div class="control-plane">
+        <h3 class="group-title">Control plane (1 or 3 or 5 nodes)</h3>
+        <div class="components-row">
+          <div class="comp api">
+            <h4>kube-apiserver</h4>
+            <div class="role">The ONLY thing that talks to etcd. Auth, authz, admission, the REST API.</div>
+          </div>
+          <div class="comp etcd">
+            <h4>etcd</h4>
+            <div class="role">Strongly consistent key-value store. Holds <em>all</em> cluster state.</div>
+          </div>
+          <div class="comp sched">
+            <h4>kube-scheduler</h4>
+            <div class="role">Picks a Node for each unscheduled Pod. Pure decision engine.</div>
+          </div>
+          <div class="comp cm">
+            <h4>kube-controller-manager</h4>
+            <div class="role">Bag of controllers: Deployment, ReplicaSet, Node, Job, EndpointSlice, ServiceAccount, ...</div>
+          </div>
+          <div class="comp cm">
+            <h4>cloud-controller-manager</h4>
+            <div class="role">Cloud-specific glue: external LBs, node lifecycle, route tables. Absent on kind / bare-metal.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="worker">
+        <h3 class="group-title">Worker node #1</h3>
+        <div class="components-row">
+          <div class="comp kubelet">
+            <h4>kubelet</h4>
+            <div class="role">Watches API for pods on this node. Talks to runtime via CRI. Reports status.</div>
+          </div>
+          <div class="comp proxy">
+            <h4>kube-proxy</h4>
+            <div class="role">Programs iptables/IPVS so Service IPs route to backend Pods.</div>
+          </div>
+          <div class="comp cri">
+            <h4>Container runtime</h4>
+            <div class="role">containerd / CRI-O. Pulls images, runs containers, manages cgroups.</div>
+          </div>
+          <div class="comp cni">
+            <h4>CNI plugin</h4>
+            <div class="role">Calico / Cilium / kindnet. Assigns Pod IPs, sets up veth pairs and routes.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="worker">
+        <h3 class="group-title">Worker node #2  (same components, replicated per node)</h3>
+        <div class="components-row">
+          <div class="comp kubelet"><h4>kubelet</h4><div class="role">…</div></div>
+          <div class="comp proxy"><h4>kube-proxy</h4><div class="role">…</div></div>
+          <div class="comp cri"><h4>Container runtime</h4><div class="role">…</div></div>
+          <div class="comp cni"><h4>CNI plugin</h4><div class="role">…</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="flow">
+    <h2>The 12-step flow of <code style="color:var(--c-api)">kubectl apply -f deployment.yaml</code></h2>
+    <p class="lead">
+      Every step is colour-coded by the component doing the work. Each component
+      acts independently — there's no single orchestrator pulling strings.
+    </p>
+
+    <div class="timeline">
+
+      <div class="step kubectl">
+        <span class="num">1</span>
+        <h3>kubectl prepares the request <span class="who">kubectl</span></h3>
+        <ul>
+          <li>Reads <code>~/.kube/config</code> to find the API server URL + your client cert/token.</li>
+          <li>Parses your YAML, expands defaults, runs client-side validation.</li>
+          <li>Discovers the resource API path (e.g. <code>/apis/apps/v1/namespaces/demo/deployments</code>).</li>
+          <li>Sends an HTTPS <code>POST</code> (new) or <code>PATCH</code> (apply existing).</li>
+        </ul>
+      </div>
+
+      <div class="step api">
+        <span class="num">2</span>
+        <h3>API server: authentication <span class="who">kube-apiserver</span></h3>
+        <p>"Who are you?" Identifies the caller using one of:</p>
+        <ul>
+          <li>x509 client certificate (most local / kubeadm clusters)</li>
+          <li>Bearer token (ServiceAccount, OIDC)</li>
+          <li>Webhook token reviewer</li>
+        </ul>
+        <p>Output: a <code>user.Info</code> with username + groups. No permissions checked yet.</p>
+      </div>
+
+      <div class="step api">
+        <span class="num">3</span>
+        <h3>API server: authorization (RBAC) <span class="who">kube-apiserver</span></h3>
+        <p>"Are you allowed?" Walks every <code>RoleBinding</code> and <code>ClusterRoleBinding</code>
+          and asks: does ANY of them grant verb=<code>create</code> on resource=<code>deployments</code>
+          in namespace=<code>demo</code>?</p>
+        <p>If no: <code>403 Forbidden</code>. Done. Otherwise → admission.</p>
+      </div>
+
+      <div class="step api">
+        <span class="num">4</span>
+        <h3>Mutating admission <span class="who">kube-apiserver</span></h3>
+        <p>The request is rewritten by a chain of mutators (in order):</p>
+        <ul>
+          <li><strong>Built-in</strong>: ServiceAccount injection, default StorageClass, default toleration.</li>
+          <li><strong>MutatingAdmissionWebhook</strong>: Istio sidecar injector, cert-manager, your custom webhooks.</li>
+        </ul>
+      </div>
+
+      <div class="step api">
+        <span class="num">5</span>
+        <h3>Validating admission <span class="who">kube-apiserver</span></h3>
+        <p>Last chance to reject. Validators can NOT mutate, only say yes/no:</p>
+        <ul>
+          <li><strong>Built-in</strong>: <code>ResourceQuota</code>, <code>LimitRange</code>, <code>PodSecurity</code>.</li>
+          <li><strong>ValidatingAdmissionWebhook</strong>: OPA/Gatekeeper, Kyverno, your policies.</li>
+        </ul>
+        <p>Reject → <code>400</code> back to <code>kubectl</code>. Accept → persist.</p>
+      </div>
+
+      <div class="step etcd">
+        <span class="num">6</span>
+        <h3>Write to etcd <span class="who">etcd</span></h3>
+        <p>API server is the ONLY component that talks to etcd directly. The
+          Deployment object is written under a key like
+          <code>/registry/deployments/demo/k8s-demo</code>.</p>
+        <p>etcd uses Raft to replicate the write to a quorum of etcd members
+          before acknowledging.</p>
+      </div>
+
+      <div class="step api">
+        <span class="num">7</span>
+        <h3>API server replies; watchers fire <span class="who">kube-apiserver</span></h3>
+        <p>kubectl gets <code>201 Created</code> and prints
+          <code>deployment.apps/k8s-demo created</code>.</p>
+        <p>Crucially, the API server now broadcasts a <strong>watch event</strong>
+          (<code>ADDED</code>) to every controller that has an open
+          <code>WATCH /apis/apps/v1/deployments</code> stream.</p>
+      </div>
+
+      <div class="step cm">
+        <span class="num">8</span>
+        <h3>Deployment controller wakes up <span class="who">controller-manager</span></h3>
+        <p>The Deployment controller's reconcile loop fires:</p>
+        <ul>
+          <li>Reads the new Deployment.</li>
+          <li>Sees no matching ReplicaSet exists → creates one (POST to API).</li>
+          <li>Names it <code>k8s-demo-&lt;templateHash&gt;</code> (so a new image == new RS).</li>
+        </ul>
+        <p>That POST loops back through steps 2–7 again — auth, admission, etcd write, watch event.</p>
+      </div>
+
+      <div class="step cm">
+        <span class="num">9</span>
+        <h3>ReplicaSet controller creates Pods <span class="who">controller-manager</span></h3>
+        <p>Different controller, same pattern:</p>
+        <ul>
+          <li>Watches ReplicaSets. Sees the new RS wants 3 replicas, has 0.</li>
+          <li>Creates 3 Pod objects via API (status=<code>Pending</code>, <code>spec.nodeName=""</code>).</li>
+          <li>Each POST hits etcd, fires another watch event…</li>
+        </ul>
+      </div>
+
+      <div class="step sched">
+        <span class="num">10</span>
+        <h3>Scheduler binds Pods to Nodes <span class="who">kube-scheduler</span></h3>
+        <p>Watches for pods with empty <code>spec.nodeName</code>. For each one:</p>
+        <ul>
+          <li><strong>Filter</strong>: which nodes can fit this pod? (resources, nodeSelector, taints, affinity, PV zone…)</li>
+          <li><strong>Score</strong>: rank survivors (least loaded, image already cached, balanced spread).</li>
+          <li><strong>Bind</strong>: <code>POST /pods/&lt;name&gt;/binding {nodeName: worker2}</code> — that's it. No signal, no push.</li>
+        </ul>
+        <p>The scheduler does NOT start the pod. It only writes the assignment.</p>
+      </div>
+
+      <div class="step kubelet">
+        <span class="num">11</span>
+        <h3>Kubelet on the chosen node runs the pod <span class="who">kubelet</span></h3>
+        <p>Each kubelet keeps an open watch <em>filtered to its own nodeName</em>.
+          A new pod assigned to it triggers:</p>
+        <ul>
+          <li>Pull image via <strong>CRI</strong> → <code>containerd</code> → registry.</li>
+          <li>Create the pod sandbox (network namespace + pause container).</li>
+          <li>Call <strong>CNI</strong> plugin → assigns Pod IP, wires veth pair into the node bridge.</li>
+          <li>Mount Volumes, project ConfigMaps/Secrets/SA tokens.</li>
+          <li>Run init containers in order, then start app containers.</li>
+          <li>Run probes, PATCH <code>pod.status</code> back to API server (running, ready, IP, …).</li>
+        </ul>
+      </div>
+
+      <div class="step proxy">
+        <span class="num">12</span>
+        <h3>Service traffic gets wired <span class="who">kube-proxy</span></h3>
+        <p>Independently, on every node, kube-proxy is watching Services + EndpointSlices.</p>
+        <ul>
+          <li>The new Pod becomes Ready → API server adds it to the matching EndpointSlice.</li>
+          <li>kube-proxy receives the watch event, regenerates iptables (or IPVS) rules.</li>
+          <li>Result: traffic to <code>ClusterIP:port</code> is now load-balanced to that Pod's IP.</li>
+          <li>CoreDNS independently watches Services → publishes A records cluster-wide.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sequence">
+    <h2>Same flow as a sequence diagram</h2>
+    <p class="lead">Read top-to-bottom. Solid arrows = synchronous request. Dashed arrows = asynchronous watch events.</p>
+    <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant K as kubectl
+    participant A as API server
+    participant E as etcd
+    participant CM as Controller-mgr
+    participant S as Scheduler
+    participant KL as Kubelet (worker2)
+    participant CRI as Container runtime
+    participant KP as kube-proxy
+
+    U->>K: kubectl apply -f deploy.yaml
+    K->>A: POST /apis/apps/v1/.../deployments
+    A->>A: AuthN + AuthZ + Admission
+    A->>E: write Deployment
+    E-->>A: ack
+    A-->>K: 201 Created
+    K-->>U: deployment.apps/k8s-demo created
+
+    Note over CM,A: continuous WATCH
+    A--&gt;&gt;CM: Deployment ADDED
+    CM->>A: POST ReplicaSet
+    A->>E: write ReplicaSet
+    A--&gt;&gt;CM: ReplicaSet ADDED
+    CM->>A: POST 3x Pod (Pending, nodeName="")
+    A->>E: write Pods
+
+    Note over S,A: continuous WATCH
+    A--&gt;&gt;S: Pod ADDED (no nodeName)
+    S->>S: Filter + Score nodes
+    S->>A: POST /pods/.../binding {nodeName: worker2}
+    A->>E: update Pod
+
+    Note over KL,A: WATCH filtered by nodeName
+    A--&gt;&gt;KL: Pod ASSIGNED
+    KL->>CRI: PullImage
+    CRI-->>KL: image ref
+    KL->>CRI: RunPodSandbox + RunContainer
+    KL->>A: PATCH pod.status (Running, Ready)
+    A->>E: update Pod status
+
+    Note over KP,A: WATCH Services + EndpointSlices
+    A--&gt;&gt;KP: EndpointSlice updated
+    KP->>KP: rewrite iptables/IPVS
+    </div>
+  </section>
+
+  <section class="section" id="components">
+    <h2>Component reference</h2>
+    <p class="lead">What each box actually does. Bookmark this — it answers 80% of "where does X live?" questions.</p>
+
+    <div class="comp-grid">
+
+      <div class="comp-card" style="border-top-color: var(--c-kubectl)">
+        <h4 style="color: var(--c-kubectl)">kubectl</h4>
+        <div class="where">runs on your laptop</div>
+        <p>The canonical client. Translates YAML/JSON into REST calls against the API server.</p>
+        <ul>
+          <li>Reads kubeconfig for endpoint + credentials</li>
+          <li>Server-side apply, dry-run, diff, rollout, exec, port-forward, logs</li>
+          <li>Has plugins (krew) for everything else</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-api)">
+        <h4 style="color: var(--c-api)">kube-apiserver</h4>
+        <div class="where">control plane · stateless · scales horizontally</div>
+        <p>The single front door to cluster state. Every read and every write goes through it.</p>
+        <ul>
+          <li>Authenticates clients (cert / token / OIDC)</li>
+          <li>Authorizes via RBAC (and Node + ABAC + Webhook)</li>
+          <li>Runs admission chain (mutating then validating)</li>
+          <li>Validates schema, persists to etcd, broadcasts watch events</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-etcd)">
+        <h4 style="color: var(--c-etcd)">etcd</h4>
+        <div class="where">control plane · 1, 3, or 5 members (Raft)</div>
+        <p>Strongly-consistent, distributed key-value store. The cluster's source of truth.</p>
+        <ul>
+          <li>Every object lives at <code>/registry/&lt;kind&gt;/&lt;ns&gt;/&lt;name&gt;</code></li>
+          <li>Supports watch streams (the magic behind every controller)</li>
+          <li>Lose etcd → lose the cluster (back it up!)</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-cm)">
+        <h4 style="color: var(--c-cm)">kube-controller-manager</h4>
+        <div class="where">control plane · ~30 controllers in one binary</div>
+        <p>Each controller is a tight reconcile loop: <em>observed → desired → act</em>.</p>
+        <ul>
+          <li>Deployment → ReplicaSet → Pod</li>
+          <li>Node controller (mark node NotReady, evict pods)</li>
+          <li>Endpoint / EndpointSlice controller (Service ↔ Pod IPs)</li>
+          <li>ServiceAccount + token controller, Job, CronJob, PV binder…</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-cm)">
+        <h4 style="color: var(--c-cm)">cloud-controller-manager</h4>
+        <div class="where">control plane · cloud-specific</div>
+        <p>Cloud-specific glue. Absent on kind, bare-metal, or self-hosted.</p>
+        <ul>
+          <li>LoadBalancer Service → cloud LB (ELB, GLB)</li>
+          <li>Node lifecycle (provision / deprovision)</li>
+          <li>Route table programming for Pod CIDRs</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-sched)">
+        <h4 style="color: var(--c-sched)">kube-scheduler</h4>
+        <div class="where">control plane</div>
+        <p>Pure decision engine for unscheduled Pods. Plug-in framework with Filter and Score phases.</p>
+        <ul>
+          <li>Filter plugins: NodeResourcesFit, NodeAffinity, TaintToleration, …</li>
+          <li>Score plugins: NodeResourcesBalancedAllocation, ImageLocality, PodTopologySpread</li>
+          <li>Output: <code>Pod.spec.nodeName</code> set via the API</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-kubelet)">
+        <h4 style="color: var(--c-kubelet)">kubelet</h4>
+        <div class="where">every worker (and control-plane) node</div>
+        <p>The agent that turns "spec" into running containers on this node.</p>
+        <ul>
+          <li>Watches API for pods assigned to this <code>nodeName</code></li>
+          <li>Calls Container Runtime via <strong>CRI</strong> gRPC</li>
+          <li>Runs probes, reports pod status, manages volumes (CSI)</li>
+          <li>Eviction when node is under pressure</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-proxy)">
+        <h4 style="color: var(--c-proxy)">kube-proxy</h4>
+        <div class="where">every node (typically a DaemonSet)</div>
+        <p>Programs the kernel so that ClusterIPs route to backend Pods.</p>
+        <ul>
+          <li>Watches Services + EndpointSlices</li>
+          <li>Modes: <code>iptables</code> (default), <code>ipvs</code>, <code>nftables</code></li>
+          <li>Does NOT proxy traffic itself in iptables/ipvs modes — kernel does</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-cri)">
+        <h4 style="color: var(--c-cri)">Container runtime (CRI)</h4>
+        <div class="where">every node</div>
+        <p>Pulls images and runs containers. Talks to kubelet over a Unix socket.</p>
+        <ul>
+          <li><code>containerd</code> (most clusters today), <code>CRI-O</code></li>
+          <li>Below it: <code>runc</code> / <code>crun</code> for OCI runtime</li>
+          <li>Manages cgroups, namespaces, image cache</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-cni)">
+        <h4 style="color: var(--c-cni)">CNI plugin</h4>
+        <div class="where">every node · DaemonSet</div>
+        <p>Gives every Pod a routable IP and decides what traffic is allowed.</p>
+        <ul>
+          <li>Calico, Cilium, Flannel, Weave, AWS VPC CNI, kindnet</li>
+          <li>Implements NetworkPolicy (kindnet does NOT)</li>
+          <li>Some (Cilium) add eBPF observability and L7 policy</li>
+        </ul>
+      </div>
+
+      <div class="comp-card" style="border-top-color: var(--c-dns)">
+        <h4 style="color: var(--c-dns)">CoreDNS</h4>
+        <div class="where">cluster add-on · Deployment in kube-system</div>
+        <p>Cluster DNS. Resolves Service / Pod / external names for every pod.</p>
+        <ul>
+          <li><code>svc.namespace.svc.cluster.local</code> → ClusterIP</li>
+          <li>Headless: returns one A-record per Ready Pod</li>
+          <li>Configured via the <code>coredns</code> ConfigMap (Corefile)</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section" id="takeaways">
+    <h2>Five things to actually remember</h2>
+    <p class="lead">If you take nothing else from this page, take these.</p>
+    <div class="key-takeaways">
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-api)">#1</span>
+        <h4>Everything goes through the API server</h4>
+        <p>Components never talk to each other directly. They all go API → etcd → API.
+          That's why <code>kubectl get events</code> sees everything — events are just objects too.</p>
+      </div>
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-cm)">#2</span>
+        <h4>Controllers are reconcile loops</h4>
+        <p>"Observed state vs desired state. Act on the diff. Repeat forever."
+          That single pattern explains Deployment, Job, EndpointSlice, Operators, you.</p>
+      </div>
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-sched)">#3</span>
+        <h4>The scheduler only writes the binding</h4>
+        <p>It does NOT start the pod. It just sets <code>spec.nodeName</code>. The kubelet
+          on that node observes the change and does all the work.</p>
+      </div>
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-kubelet)">#4</span>
+        <h4>Kubelets only watch their own pods</h4>
+        <p>Every kubelet has a watch filtered by <code>spec.nodeName=&lt;me&gt;</code>.
+          Most events are ignored — they're for some other node.</p>
+      </div>
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-proxy)">#5</span>
+        <h4>Services aren't real processes</h4>
+        <p>A Service is a row in etcd. The "load balancer" is iptables / IPVS rules
+          generated on every node by kube-proxy. There's no Service binary running anywhere.</p>
+      </div>
+
+      <div class="takeaway">
+        <span class="badge" style="background: var(--c-etcd)">#6</span>
+        <h4>etcd is the only stateful component</h4>
+        <p>Lose any other control-plane process — recoverable. Lose etcd — your cluster
+          is gone. Always back it up. Always.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section" id="reverse">
+    <h2>What about the way back? Status, drift, deletion.</h2>
+    <p class="lead">The flow above creates a Pod. The reverse flows are equally important.</p>
+
+    <h3 style="margin-top:0">Status reconciliation (every few seconds)</h3>
+    <p style="color:var(--text-dim)">
+      Kubelet keeps PATCHing <code>pod.status</code>: container restarts, OOMs, probe results,
+      IP changes. The Pod object's <code>spec</code> is desired state (you wrote it);
+      <code>status</code> is observed state (kubelet writes it).
+    </p>
+
+    <h3>Drift detection &amp; healing</h3>
+    <p style="color:var(--text-dim)">
+      ReplicaSet controller checks: "I want 3 Ready pods, I see 2." It creates a new Pod.
+      Node controller checks: "Node hasn't sent a heartbeat in 40s." It marks the node
+      <code>NotReady</code> and after 5 min evicts pods so they can reschedule.
+    </p>
+
+    <h3>Deletion (also through the API)</h3>
+    <p style="color:var(--text-dim)">
+      <code>kubectl delete deploy/k8s-demo</code> sets a <code>deletionTimestamp</code>
+      on the object. Garbage Collector controller cascades the delete to the owned
+      ReplicaSet and Pods (<em>ownerReferences</em>). Kubelet sees pod deletion → sends
+      SIGTERM → waits <code>terminationGracePeriodSeconds</code> → SIGKILL → cleans up
+      sandbox + Volume + IPAM.
+    </p>
+  </section>
+
+</main>
+
+<footer class="endnote">
+  Part of the local Kubernetes lab · <a href="dashboard.html">Lab dashboard</a> · <a href="applications/catalog.html">App catalog</a> · <a href="README.md">README</a> · <a href="docs/CHEATSHEET.md">CHEATSHEET</a>
+</footer>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+  window.__mermaid = mermaid;
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: isDark ? 'dark' : 'default',
+    themeVariables: {
+      primaryColor: '#1c2f5b',
+      primaryBorderColor: '#326CE5',
+      primaryTextColor: '#e5e9f5',
+      lineColor: '#5777b8',
+      mainBkg: '#1c2f5b',
+      clusterBkg: '#131c3a',
+      clusterBorder: '#1f2b52',
+      edgeLabelBackground: '#131c3a',
+      fontFamily: 'inherit'
+    },
+    flowchart: { curve: 'basis', padding: 16 },
+    sequence:  { actorMargin: 60, messageMargin: 35, mirrorActors: false, useMaxWidth: true },
+    securityLevel: 'loose'
+  });
+</script>
+<script>
+  const THEME_KEY = 'k8s-arch.theme.v1';
+  const themeBtn = document.getElementById('themeToggle');
+  const themeIcon = document.getElementById('themeIcon');
+  const sun  = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>';
+  const moon = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    themeIcon.innerHTML = t === 'dark' ? moon : sun;
+    localStorage.setItem(THEME_KEY, t);
+    if (window.__mermaid) {
+      window.__mermaid.initialize({
+        startOnLoad: false,
+        theme: t === 'dark' ? 'dark' : 'default',
+        themeVariables: t === 'dark'
+          ? { primaryColor:'#1c2f5b', primaryBorderColor:'#326CE5', primaryTextColor:'#e5e9f5', lineColor:'#5777b8', mainBkg:'#1c2f5b', clusterBkg:'#131c3a', clusterBorder:'#1f2b52', edgeLabelBackground:'#131c3a' }
+          : { primaryColor:'#e2ecff', primaryBorderColor:'#326CE5', primaryTextColor:'#0e1525', lineColor:'#326CE5', mainBkg:'#e2ecff', clusterBkg:'#f5f7fb', clusterBorder:'#e3e7f1', edgeLabelBackground:'#ffffff' },
+        flowchart: { curve: 'basis', padding: 16 },
+        sequence:  { actorMargin: 60, messageMargin: 35, mirrorActors: false, useMaxWidth: true },
+        securityLevel: 'loose'
+      });
+      document.querySelectorAll('.mermaid').forEach(el => {
+        if (!el.dataset.original) el.dataset.original = el.innerHTML;
+        else el.innerHTML = el.dataset.original;
+        el.removeAttribute('data-processed');
+      });
+      window.__mermaid.run();
+    }
+  }
+  applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+  themeBtn.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+</script>
+</body>
+</html>
